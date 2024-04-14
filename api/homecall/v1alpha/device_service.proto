@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package homecall.v1alpha;
+
+option go_package = "sidus.io/pgc/homecall/v1alpha;homecall";
+
+service DeviceService {
+    rpc GenerateProto(AA) returns (BB);
+}
+
+message AA {}
+
+message BB {}

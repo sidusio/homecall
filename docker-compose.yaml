@@ -1,0 +1,33 @@
+services:
+  backend:
+    image: backend
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 8035:8080
+    environment:
+      DATABASE_URL: postgres://crudb:supersecret@db:5432/crudb
+    develop:
+      watch:
+        - path: backend
+          action: rebuild
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_USER: crudb
+      POSTGRES_DB: crudb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - 8036:5432
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8037:8080 # http://localhost:8037
+volumes:
+  pgdata:
