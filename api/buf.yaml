@@ -1,5 +1,5 @@
 version: v1
-name: sidus.io/homecall
+name: buf.build/sidusio/homecall
 breaking:
   use:
     - FILE

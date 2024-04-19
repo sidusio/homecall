@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package homecall.v1alpha;
+
+option go_package = "sidus.io/pgc/homecall/v1alpha;homecall";
+
+// DeviceSettings is a message that contains the settings for a device.
+message DeviceSettings {
+  // The name of the user that the device is associated with.
+  string users_name = 1;
+  // Whether the device should automatically answer calls.
+  bool auto_answer = 2;
+  // The number of seconds to wait before automatically answering a call.
+  int64 auto_answer_delay_seconds = 3;
+}

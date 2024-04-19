@@ -4,10 +4,67 @@ package homecall.v1alpha;
 
 option go_package = "sidus.io/pgc/homecall/v1alpha;homecall";
 
+import "homecall/v1alpha/settings.proto";
+
+// The OfficeService provides methods for managing devices and calls.
+// This service is intended to be used by the office application.
 service OfficeService {
-    rpc GenerateProto(Aa) returns (Bb);
+    // EnrollDevice starts the enrollment process for a new device.
+    rpc EnrollDevice(EnrollDeviceRequest) returns (EnrollDeviceResponse);
+
+    // ListDevices returns a list of all devices.
+    rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+
+    // StartCall starts a call with the specified device.
+    rpc StartCall(StartCallRequest) returns (StartCallResponse);
 }
 
-message Aa {}
+// DeviceSettings contains the settings for a device.
+message EnrollDeviceRequest {
+    // The name of the device.
+    string name = 1;
+    // Default settings for the device.
+    DeviceSettings settings = 2;
+}
 
-message Bb {}
+// EnrollDeviceResponse contains the enrollment key for the device.
+message EnrollDeviceResponse {
+    // The enrollment key for the device.
+    // This key is used to authenticate the device during the enrollment process.
+    string enrollment_key = 1;
+}
+
+// ListDevicesRequest is the request for the ListDevices method.
+message ListDevicesRequest {
+}
+
+// ListDevicesResponse is the response for the ListDevices method.
+message ListDevicesResponse {
+    // The list of devices.
+    repeated Device devices = 1;
+}
+
+// StartCallRequest is the request for the StartCall method.
+message StartCallRequest {
+    // The ID of the device to call.
+    string device_id = 1;
+}
+
+// StartCallResponse contains the call ID and room ID for the call.
+message StartCallResponse {
+    // The ID of the call.
+    string call_id = 1;
+    // The ID of the Jitsi room.
+    // This ID is used to join the Jitsi room.
+    string jitsi_room_id = 2;
+    // The JWT used to authenticate the user in the Jitsi room.
+    string jitsi_jwt = 3;
+}
+
+// Device represents a device.
+message Device {
+    // The ID of the device.
+    string id = 1;
+    // The name of the device.
+    string name = 2;
+}
