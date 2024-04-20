@@ -209,7 +209,7 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 				Avatar:             "",
 				Email:              "",
 				Moderator:          false,
-				HiddenFromRecorder: true,
+				HiddenFromRecorder: false,
 			},
 			Features: JitsiClaimFeatures{
 				Livestreaming: false,
@@ -246,7 +246,7 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 				Avatar:             "",
 				Email:              "",
 				Moderator:          false,
-				HiddenFromRecorder: true,
+				HiddenFromRecorder: false,
 			},
 			Features: JitsiClaimFeatures{
 				Livestreaming: false,
