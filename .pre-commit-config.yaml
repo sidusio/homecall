@@ -53,7 +53,6 @@ repos:
       - id: go-build-repo-mod
       - id: go-mod-tidy
       - id: go-test-mod
-        include: ^backend/
 default_install_hook_types:
   - pre-commit
   - commit-msg
