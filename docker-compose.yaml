@@ -9,6 +9,11 @@ services:
     environment:
       HOMECALL_DB_HOST: db
       HOMECALL_DB_PASSWORD: supersecret
+      HOMECALL_JITSI_APP_ID: ${HOMECALL_JITSI_APP_ID}
+      HOMECALL_JITSI_KEY_ID: ${HOMECALL_JITSI_KEY_ID}
+      HOMECALL_JITSI_KEY_FILE: jitsi_key.pem
+    volumes:
+      - ./jitsi_key.pem:/root/jitsi_key.pem
     develop:
       watch:
         - path: backend

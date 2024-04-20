@@ -167,6 +167,7 @@ type JitsiClaims struct {
 	Room    string            `json:"room"`
 	Context JitsiClaimContext `json:"context"`
 	jwt.RegisteredClaims
+	Audience string `json:"aud"`
 }
 
 type JitsiClaimContext struct {
@@ -200,13 +201,13 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 
 	// Create jitsi jwt for office
 	officeToken := jwt.NewWithClaims(jwt.SigningMethodRS256, JitsiClaims{
-		Room: fmt.Sprintf("%s/%s", s.jitsiAppId, roomName),
+		Room: roomName,
 		Context: JitsiClaimContext{
 			User: JitsiClaimUser{
 				ID:                 "office",
 				Name:               "office",
 				Avatar:             "",
-				Email:              "",
+				Email:              "office@sidus.io",
 				Moderator:          false,
 				HiddenFromRecorder: true,
 			},
@@ -218,13 +219,14 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 			},
 		},
 		RegisteredClaims: jwt.RegisteredClaims{
-			Audience:  []string{"jitsi"},
+			//Audience:  []string{"jitsi"},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "chat",
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Subject:   s.jitsiAppId,
 		},
+		Audience: "jitsi",
 	})
 	officeToken.Header["kid"] = s.jitsiKeyId
 
