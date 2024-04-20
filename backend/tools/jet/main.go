@@ -147,7 +147,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("failed to convert port to number: %w", err)
 	}
 
-	schemas := []string{"internal_data", "internal_state"}
+	schemas := []string{"public"}
 	for _, schema := range schemas {
 		logger.Info("Generating code", "schema", schema)
 		err = postgres.Generate("./gen",
