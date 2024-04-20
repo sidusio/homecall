@@ -1,3 +1,4 @@
 golang 1.21.0
 pre-commit 3.4.0
 buf 1.28.1
+nodejs 20.11.1
