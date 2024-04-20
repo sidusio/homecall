@@ -23,8 +23,13 @@ onMounted(() => {
 <template>
   <div class="home">
     <aside class="home__side">
-      <div>
-        <h1>Enheter</h1>
+      <div class="home__device-container">
+        <div class="home__device-header">
+          <h1>Enheter</h1>
+
+          <p>{{ devices.length }} enheter</p>
+        </div>
+
         <ul class="home__devices">
           <li
             class="home__device"
@@ -57,7 +62,11 @@ onMounted(() => {
     </aside>
 
     <main class="home__dashboard">
-      Hello
+      <p>
+        Här till vänster hittar du alla enheter som är registerade.
+        <br/>
+        Klicka på grön lur tillhörande enheten för att ringa.
+      </p>
     </main>
   </div>
 </template>
@@ -72,16 +81,32 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 300px;
-    padding: 1rem;
+    width: 350px;
     background-color: white;
     box-shadow: 0 0 7px rgba(0, 0, 0, 0.1);
+  }
+
+  &__device-container {
+    padding: 0 1rem;
+  }
+
+  &__device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+
+    p {
+      font-size: 0.8rem;
+      color: gray;
+    }
   }
 
   &__enroll {
     background-color: rgb(67, 107, 177);
     color: rgb(255, 255, 255);
     padding: 1rem;
+    margin: 1rem;
     text-align: center;
     border-radius: 30px;
     text-decoration: none;
@@ -96,14 +121,19 @@ onMounted(() => {
   &__devices {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 1rem 0 0 0;
+
+    max-height: 80vh;
+    overflow: auto;
   }
 
   &__device {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    gap: 2rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 1rem;
 
     &--small {
       font-size: 0.8rem;
@@ -138,8 +168,12 @@ onMounted(() => {
   }
 
   &__dashboard {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     flex: 1;
     padding: 2rem;
+    text-align: center;
   }
 }
 </style>

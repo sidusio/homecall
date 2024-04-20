@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { deviceClient } from '@/clients';
-import { ref } from 'vue'
+import { useRouter } from 'vue-router';
+import * as jose from 'jose'
 
 import { QrcodeStream } from 'vue-qrcode-reader'
 
-const detected = ref(false)
-const deviceId = ref('')
+const router = useRouter()
 
 const onDetect = async (content: Array<any>) => {
   // Create key pair for the device.
@@ -21,24 +21,29 @@ const onDetect = async (content: Array<any>) => {
   )
 
   // Export the public key.
-  const publicKeyExport = await window.crypto.subtle.exportKey('jwk', keyPair.publicKey)
+  const publicKeyExport = await jose.exportSPKI(keyPair.publicKey)
+  const privateKeyExport = await jose.exportPKCS8(keyPair.privateKey)
 
   // Enroll the device.
   const res = await deviceClient.enroll({
-    publicKey: 'publicKeyExport',
+    publicKey: publicKeyExport,
     enrollmentKey: content[0].rawValue,
   })
 
-  // Set the device ID.
-  deviceId.value = res.deviceId
+  // Save private key and deviceid in local storage.
+  localStorage.setItem('privateKey', privateKeyExport)
+  localStorage.setItem('deviceId', res.deviceId)
 
-  detected.value = true
+  // Redirect to the device view.
+  router.push('/device')
 }
+
+
 </script>
 
 <template>
   <main class="enroll-device">
-    <div class="enroll-device__qrcode" v-if="!detected">
+    <div class="enroll-device__qrcode">
       <p class="enroll-device__heading">
         Skanna QR-koden för att registrera enheten.
       </p>
@@ -46,19 +51,6 @@ const onDetect = async (content: Array<any>) => {
         class="enroll-device__qrcode-stream"
         @detect="onDetect"
       />
-    </div>
-
-    <div class="enroll-device__registered" v-else>
-      <h1>Enheten registrerad!</h1>
-      <p>ID: {{ deviceId }}</p>
-      <p>Du kan nu gå tillbaka till startsidan.</p>
-
-      <router-link
-        class="enroll-device__back"
-        to="/device"
-      >
-        Tillbaka till startsidan
-      </router-link>
     </div>
   </main>
 </template>
