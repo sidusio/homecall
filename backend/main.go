@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -50,6 +51,10 @@ type Config struct {
 	DBName     string `envconfig:"DB_NAME" default:"homecall"`
 
 	Port string `envconfig:"PORT" default:"8080"`
+
+	JitsiAppId   string `envconfig:"JITSI_APP_ID" required:"true"`
+	JitsiKeyId   string `envconfig:"JITSI_KEY_ID" required:"true"`
+	JitsiKeyFile string `envconfig:"JITSI_KEY_FILE" required:"true"`
 }
 
 type Call struct {
@@ -59,16 +64,28 @@ type Call struct {
 	JitsiRoomId string
 }
 
-func NewOfficeService(db *sql.DB, pubSub message.Publisher) *OfficeService {
+func NewOfficeService(
+	db *sql.DB,
+	pubSub message.Publisher,
+	jitsiAppId string,
+	jitsiKeyId string,
+	jitsiPrivateKey *rsa.PrivateKey,
+) *OfficeService {
 	return &OfficeService{
-		db:     db,
-		pubSub: pubSub,
+		db:              db,
+		pubSub:          pubSub,
+		jitsiAppId:      jitsiAppId,
+		jitsiKeyId:      jitsiKeyId,
+		jitsiPrivateKey: jitsiPrivateKey,
 	}
 }
 
 type OfficeService struct {
-	db     *sql.DB
-	pubSub message.Publisher
+	db              *sql.DB
+	pubSub          message.Publisher
+	jitsiAppId      string
+	jitsiKeyId      string
+	jitsiPrivateKey *rsa.PrivateKey
 }
 
 func randomString() (string, error) {
@@ -119,7 +136,7 @@ func (s *OfficeService) EnrollDevice(ctx context.Context, req *connect.Request[h
 // ListDevices returns a list of all devices.
 func (s *OfficeService) ListDevices(ctx context.Context, req *connect.Request[homecallv1alpha.ListDevicesRequest]) (*connect.Response[homecallv1alpha.ListDevicesResponse], error) {
 	devicesStmt := SELECT(
-		Device.ID,
+		Device.DeviceID,
 		Device.Name,
 	).FROM(
 		Device,
@@ -146,9 +163,136 @@ func (s *OfficeService) ListDevices(ctx context.Context, req *connect.Request[ho
 	}, nil
 }
 
+type JitsiClaims struct {
+	Room    string            `json:"room"`
+	Context JitsiClaimContext `json:"context"`
+	jwt.RegisteredClaims
+}
+
+type JitsiClaimContext struct {
+	User     JitsiClaimUser     `json:"user"`
+	Features JitsiClaimFeatures `json:"features"`
+}
+
+type JitsiClaimUser struct {
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	Avatar             string `json:"avatar"`
+	Email              string `json:"email"`
+	Moderator          bool   `json:"moderator"`
+	HiddenFromRecorder bool   `json:"hidden-from-recorder"`
+}
+
+type JitsiClaimFeatures struct {
+	Livestreaming bool `json:"livestreaming"`
+	OutboundCall  bool `json:"outbound-call"`
+	Transcription bool `json:"transcription"`
+	Recording     bool `json:"recording"`
+}
+
 // StartCall starts a call with the specified device.
-func (s *OfficeService) StartCall(context.Context, *connect.Request[homecallv1alpha.StartCallRequest]) (*connect.Response[homecallv1alpha.StartCallResponse], error) {
-	return nil, errors.New("not implemented")
+func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[homecallv1alpha.StartCallRequest]) (*connect.Response[homecallv1alpha.StartCallResponse], error) {
+	// Create jitsi room
+	roomName, err := randomString()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate room name: %w", err)
+	}
+
+	// Create jitsi jwt for office
+	officeToken := jwt.NewWithClaims(jwt.SigningMethodRS256, JitsiClaims{
+		Room: fmt.Sprintf("%s/%s", s.jitsiAppId, roomName),
+		Context: JitsiClaimContext{
+			User: JitsiClaimUser{
+				ID:                 "office",
+				Name:               "office",
+				Avatar:             "",
+				Email:              "",
+				Moderator:          false,
+				HiddenFromRecorder: true,
+			},
+			Features: JitsiClaimFeatures{
+				Livestreaming: false,
+				OutboundCall:  false,
+				Transcription: false,
+				Recording:     false,
+			},
+		},
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  []string{"jitsi"},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "chat",
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Subject:   s.jitsiAppId,
+		},
+	})
+	officeToken.Header["kid"] = s.jitsiKeyId
+
+	signedOfficeToken, err := officeToken.SignedString(s.jitsiPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign office token: %w", err)
+	}
+
+	// Create jitsi jwt for device
+	deviceToken := jwt.NewWithClaims(jwt.SigningMethodRS256, JitsiClaims{
+		Room: fmt.Sprintf("%s/%s", s.jitsiAppId, roomName),
+		Context: JitsiClaimContext{
+			User: JitsiClaimUser{
+				ID:                 req.Msg.GetDeviceId(),
+				Name:               "Johan",
+				Avatar:             "",
+				Email:              "",
+				Moderator:          false,
+				HiddenFromRecorder: true,
+			},
+			Features: JitsiClaimFeatures{
+				Livestreaming: false,
+				OutboundCall:  false,
+				Transcription: false,
+				Recording:     false,
+			},
+		},
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  []string{"jitsi"},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "chat",
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Subject:   s.jitsiAppId,
+		},
+	})
+	deviceToken.Header["kid"] = s.jitsiKeyId
+
+	signedDeviceToken, err := deviceToken.SignedString(s.jitsiPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign office token: %w", err)
+	}
+
+	// Broadcast call
+	call := Call{
+		DeviceID:    req.Msg.GetDeviceId(),
+		ID:          uuid.New().String(),
+		JitsiJwt:    signedDeviceToken,
+		JitsiRoomId: fmt.Sprintf("%s/%s", s.jitsiAppId, roomName),
+	}
+
+	callJson, err := json.Marshal(call)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal call: %w", err)
+	}
+
+	err = s.pubSub.Publish(callsTopic, message.NewMessage(uuid.New().String(), callJson))
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish call: %w", err)
+	}
+
+	return &connect.Response[homecallv1alpha.StartCallResponse]{
+		Msg: &homecallv1alpha.StartCallResponse{
+			CallId:      call.ID,
+			JitsiJwt:    signedOfficeToken,
+			JitsiRoomId: fmt.Sprintf("%s/%s", s.jitsiAppId, roomName),
+		},
+	}, nil
 }
 
 func NewDeviceService(db *sql.DB, callsBroadcaster message.Subscriber) *DeviceService {
@@ -385,8 +529,23 @@ func run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 		return nil
 	})
 
+	jitsiKeyData, err := os.ReadFile(cfg.JitsiKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to read jitsi key file: %w", err)
+	}
+	jitsiKey, err := jwt.ParseRSAPrivateKeyFromPEM(jitsiKeyData)
+	if err != nil {
+		return fmt.Errorf("failed to parse jitsi key: %w", err)
+	}
+
 	deviceService := NewDeviceService(db, callBroadcaster)
-	officeService := NewOfficeService(db, pubSub)
+	officeService := NewOfficeService(
+		db,
+		pubSub,
+		cfg.JitsiAppId,
+		cfg.JitsiKeyId,
+		jitsiKey,
+	)
 
 	mux := http.NewServeMux()
 	mux.Handle(homecallv1alphaconnect.NewDeviceServiceHandler(deviceService))
