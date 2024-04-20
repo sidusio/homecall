@@ -9,19 +9,24 @@ const router = createRouter({
       component: () => import('../views/office/HomeView.vue')
     },
     {
+      path: '/enroll-device',
+      name: 'Enroll Device',
+      component: () => import('../views/office/EnrollDevice.vue')
+    },
+    {
       path: '/call',
       name: 'Call',
       component: () => import('../views/office/CallView.vue')
     },
     {
-      path: '/client',
+      path: '/device',
       name: 'Client Home',
-      component: () => import('../views/client/HomeView.vue')
+      component: () => import('../views/device/HomeView.vue')
     },
     {
-      path: '/client/call',
+      path: '/device/call',
       name: 'Client Call',
-      component: () => import('../views/client/CallView.vue')
+      component: () => import('../views/device/CallView.vue')
     },
 
   ]
