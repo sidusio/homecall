@@ -1,12 +1,14 @@
 FROM golang:alpine AS builder
 
-COPY . /app
-
 WORKDIR /app
+
+COPY go.* .
 
 RUN go mod download
 
-RUN go build -o main .
+COPY . /app
+
+RUN go build -o out/ ./cmd/...
 
 FROM alpine:latest
 
@@ -14,6 +16,6 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /root
 
-COPY --from=builder /app/main .
+COPY --from=builder /app/out/ .
 
-CMD ["./main"]
+CMD ["./homecall"]

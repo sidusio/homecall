@@ -3,9 +3,6 @@
 *.pem
 *.pem.pub
 
-
-backend/gen/
-
 .idea
 
 .env

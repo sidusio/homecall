@@ -3,7 +3,7 @@ services:
     build:
       context: backend
       dockerfile: Dockerfile
-    restart: always
+    restart: on-failure
     ports:
       - 8035:8080
     environment:
@@ -14,6 +14,8 @@ services:
       HOMECALL_JITSI_KEY_FILE: jitsi_key.pem
     volumes:
       - ./jitsi_key.pem:/root/jitsi_key.pem
+    depends_on:
+        - db
     develop:
       watch:
         - path: backend
