@@ -13,17 +13,20 @@ import (
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/encoding/protojson"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
 	"sidus.io/home-call/gen/jetdb/public/model"
+	"sidus.io/home-call/migrations"
 	"sidus.io/home-call/postgresdb"
 	"strings"
 	"time"
@@ -36,7 +39,18 @@ import (
 
 const (
 	callsTopic = "homecall.calls"
+	appName    = "homecall"
 )
+
+type Config struct {
+	DBHost     string `envconfig:"DB_HOST" default:"localhost"`
+	DBPort     string `envconfig:"DB_PORT" default:"5432"`
+	DBUser     string `envconfig:"DB_USER" default:"homecall"`
+	DBPassword string `envconfig:"DB_PASSWORD" required:"true"`
+	DBName     string `envconfig:"DB_NAME" default:"homecall"`
+
+	Port string `envconfig:"PORT" default:"8080"`
+}
 
 type Call struct {
 	DeviceID    string
@@ -58,12 +72,17 @@ type OfficeService struct {
 }
 
 func randomString() (string, error) {
-	b := make([]byte, 64)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate random string: %w", err)
+	validBytes := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	b := strings.Builder{}
+	b.Grow(32)
+	for i := 0; i < 32; i++ {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(validBytes))))
+		if err != nil {
+			return "", fmt.Errorf("failed to generate random string: %w", err)
+		}
+		b.WriteByte(validBytes[idx.Int64()])
 	}
-	return string(b), nil
+	return b.String(), nil
 }
 
 // EnrollDevice starts the enrollment process for a new device.
@@ -299,12 +318,19 @@ func main() {
 		cleanup()
 	}(ctx, cleanup)
 
+	var cfg Config
+	err := envconfig.Process(appName, &cfg)
+	if err != nil {
+		slog.Error("failed to process env vars", "error", err)
+		os.Exit(1)
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
 	slog.SetDefault(logger)
 
-	err := run(ctx, logger)
+	err = run(ctx, logger, cfg)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to run", "error", err)
 		os.Exit(1)
@@ -313,17 +339,31 @@ func main() {
 	os.Exit(0)
 }
 
-func run(ctx context.Context, logger *slog.Logger) error {
+func run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	db, err := postgresdb.NewDirectConnection(ctx, postgresdb.DirectConfig{
-		Hostname: "localhost",
-		Port:     "5432",
-		UserName: "postgres",
-		Password: "password",
-		Database: "homecall",
+		Hostname: cfg.DBHost,
+		Port:     cfg.DBPort,
+		UserName: cfg.DBUser,
+		Password: cfg.DBPassword,
+		Database: cfg.DBName,
 	}, logger)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	migrator, err := postgresdb.NewMigrator(ctx, db, logger, postgresdb.MigrationConfig{
+		ApplyMigrations: true,
+		MigrationsFS:    migrations.Migrations,
+		MigrationsPath:  ".",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+
+	err = migrator.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	pubSub := gochannel.NewGoChannel(gochannel.Config{
@@ -336,7 +376,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to create call broadcaster: %w", err)
 	}
-	callBroadcaster.AddSubscription("homecall.calls")
+	callBroadcaster.AddSubscription(callsTopic)
 	eg.Go(func() error {
 		err := callBroadcaster.Run(ctx)
 		if err != nil {
@@ -359,7 +399,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	})
 	server := &http.Server{
 		Handler: h2c.NewHandler(mux, &http2.Server{}),
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%s", cfg.Port),
 	}
 	eg.Go(func() error {
 		err := listenAndServe(ctx, server, 15*time.Second)

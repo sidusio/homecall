@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	migrate "github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
@@ -66,7 +65,8 @@ func (m *Migrator) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create driver: %w", err)
 	}
-	defer func(driver database.Driver) {
+	// Seems to close underlying DB connection
+	/*defer func(driver database.Driver) {
 		err := driver.Close()
 		if err != nil {
 			if errors.Is(err, sql.ErrConnDone) {
@@ -74,7 +74,7 @@ func (m *Migrator) Run(ctx context.Context) error {
 			}
 			//m.logger.ErrorContext(ctx, "failed to close migration driver", "error", err)
 		}
-	}(driver)
+	}(driver)*/
 
 	src, err := iofs.New(m.cfg.MigrationsFS, m.cfg.MigrationsPath)
 	if err != nil {
@@ -91,12 +91,13 @@ func (m *Migrator) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
-	defer func(mi *migrate.Migrate) {
+	// Seems to close underlying DB connection
+	/*defer func(mi *migrate.Migrate) {
 		err, _ := mi.Close()
 		if err != nil {
 			m.logger.ErrorContext(ctx, "failed to close migrate instance", "error", err)
 		}
-	}(mi)
+	}(mi)*/
 
 	// Get the current version of the database schema.
 	version, dirty, err := mi.Version()

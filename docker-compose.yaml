@@ -7,7 +7,8 @@ services:
     ports:
       - 8035:8080
     environment:
-      DATABASE_URL: postgres://homecall:supersecret@db:5432/homecall
+      HOMECALL_DB_HOST: db
+      HOMECALL_DB_PASSWORD: supersecret
     develop:
       watch:
         - path: backend

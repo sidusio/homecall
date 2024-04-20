@@ -10,6 +10,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.5.5
+	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/ory/dockertest/v3 v3.10.0
 	golang.org/x/net v0.21.0
 	golang.org/x/sync v0.5.0
