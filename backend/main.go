@@ -207,7 +207,7 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 				ID:                 "office",
 				Name:               "office",
 				Avatar:             "",
-				Email:              "office@sidus.io",
+				Email:              "",
 				Moderator:          false,
 				HiddenFromRecorder: true,
 			},
@@ -219,6 +219,7 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 			},
 		},
 		RegisteredClaims: jwt.RegisteredClaims{
+			// Jitsi requires audience to be set as a string
 			//Audience:  []string{"jitsi"},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -237,7 +238,7 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 
 	// Create jitsi jwt for device
 	deviceToken := jwt.NewWithClaims(jwt.SigningMethodRS256, JitsiClaims{
-		Room: fmt.Sprintf("%s/%s", s.jitsiAppId, roomName),
+		Room: roomName,
 		Context: JitsiClaimContext{
 			User: JitsiClaimUser{
 				ID:                 req.Msg.GetDeviceId(),
@@ -255,13 +256,15 @@ func (s *OfficeService) StartCall(ctx context.Context, req *connect.Request[home
 			},
 		},
 		RegisteredClaims: jwt.RegisteredClaims{
-			Audience:  []string{"jitsi"},
+			// Jitsi requires audience to be set as a string
+			//Audience:  []string{"jitsi"},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "chat",
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Subject:   s.jitsiAppId,
 		},
+		Audience: "jitsi",
 	})
 	deviceToken.Header["kid"] = s.jitsiKeyId
 
