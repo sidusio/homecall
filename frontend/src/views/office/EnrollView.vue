@@ -24,12 +24,15 @@ const enrollDevice = async (e: Event) => {
 
     // Set the enrollment key from the response.
     enrollmentKey.value = res.enrollmentKey
+    console.log(enrollmentKey.value)
 }
 </script>
 
 <template>
   <main class="enroll-device">
-    <h1>Enroll Device</h1>
+    <h1 class="enroll-device__title">
+        Registrera enhet
+    </h1>
 
     <form v-if="!enrollmentKey">
         <input type="text" placeholder="Device Name" v-model="deviceName" />
@@ -42,12 +45,16 @@ const enrollDevice = async (e: Event) => {
         <button @click="enrollDevice">Enroll Device</button>
     </form>
 
-    <qrcode-vue
-        v-else
-        :value="enrollmentKey"
-        :size="300"
-        level="H"
-    />
+    <div v-else>
+        <p class="enroll-device__desc">
+            Skanna QR-koden med enheten.
+        </p>
+        <qrcode-vue
+            :value="enrollmentKey"
+            :size="300"
+            level="H"
+        />
+    </div>
   </main>
 </template>
 
@@ -58,6 +65,11 @@ const enrollDevice = async (e: Event) => {
     align-items: center;
     justify-content: center;
     height: 100vh;
+
+    &__desc {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
 
     form {
         display: flex;

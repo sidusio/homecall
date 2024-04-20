@@ -1,19 +1,23 @@
 <script setup lang="ts">
 // There doesn't seem to be any TS support for Jitsi Meet.
 import { onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+
+const deviceId = useRoute().params.deviceId
 
 onMounted(() => {
-    window.alert('Office Call View')
+    /*window.alert('Office Call View')
     const api = new JitsiMeetExternalAPI('8x8.vc', {
         roomName: import.meta.env.VITE_JITSI_ROOM_ID,
         parentNode: document.querySelector('#meeting'),
         height: '100vh',
-    })
+    })*/
 });
 </script>
 
 <template>
   <div>
+    <h1>Device ID: {{ deviceId }}</h1>
     <div id="meeting"></div>
   </div>
 </template>
