@@ -80,7 +80,7 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 
 	// Insert enrollment
 	insertEnrollmentStmt := Enrollment.INSERT(Enrollment.ID, Enrollment.Key, Enrollment.DeviceSettings).QUERY(
-		SELECT(Device.ID, String(enrollmentKey), String(string(deviceSettings))).FROM(Device).WHERE(Device.DeviceID.EQ(String(deviceId))))
+		SELECT(Device.ID, String(enrollmentKey), Json(string(deviceSettings))).FROM(Device).WHERE(Device.DeviceID.EQ(String(deviceId))))
 	_, err = insertEnrollmentStmt.ExecContext(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert enrollment: %w", err)
