@@ -73,22 +73,14 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 
 	// Insert device
 	insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name).VALUES(deviceId, req.Msg.GetName())
-	deviceInsertResult, err := insertDeviceStmt.ExecContext(ctx, tx)
+	_, err = insertDeviceStmt.ExecContext(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert device: %w", err)
 	}
-	deviceDbId, err := deviceInsertResult.LastInsertId()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get id of lasy inserted device: %w", err)
-	}
 
 	// Insert enrollment
-	insertEnrollmentStmt := Enrollment.INSERT(Enrollment.ID, Enrollment.Key, Enrollment.DeviceSettings).MODEL(
-		&model.Enrollment{
-			ID:             int32(deviceDbId),
-			Key:            enrollmentKey,
-			DeviceSettings: string(deviceSettings),
-		})
+	insertEnrollmentStmt := Enrollment.INSERT(Enrollment.ID, Enrollment.Key, Enrollment.DeviceSettings).QUERY(
+		SELECT(Device.ID, String(enrollmentKey), String(string(deviceSettings))).FROM(Device).WHERE(Device.DeviceID.EQ(String(deviceId))))
 	_, err = insertEnrollmentStmt.ExecContext(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert enrollment: %w", err)
