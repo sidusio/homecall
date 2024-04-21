@@ -192,6 +192,7 @@ onMounted(() => {
     &:hover {
       background-color: rgb(67, 107, 177, 0.9);
       color: white;
+      cursor: pointer;
     }
   }
 
@@ -252,6 +253,7 @@ onMounted(() => {
       background-color: rgb(67, 107, 177);
 
       &:hover {
+        cursor: pointer;
         background-color: rgb(67, 107, 177, 0.9);
       }
     }

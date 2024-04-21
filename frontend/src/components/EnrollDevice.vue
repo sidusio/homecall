@@ -59,7 +59,7 @@ onUnmounted(() => {
             level="H"
         />
 
-        <button @click="emit('close')">
+        <button class="btn" @click="emit('close')">
             Avbryt
         </button>
     </div>
@@ -74,6 +74,25 @@ onUnmounted(() => {
     &__desc {
         margin-bottom: 2rem;
         text-align: center;
+    }
+}
+
+.btn {
+    background-color: rgb(67, 107, 177);
+    color: rgb(255, 255, 255);
+    padding: 1rem 2rem;
+    margin-top: 2rem;
+    text-align: center;
+    border-radius: 30px;
+    text-decoration: none;
+    transition: all 0.3s;
+    font-size: 1rem;
+    border: none;
+
+    &:hover {
+      background-color: rgb(67, 107, 177, 0.9);
+      color: white;
+        cursor: pointer;
     }
 }
 </style>
