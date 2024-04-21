@@ -41,6 +41,7 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alp
 	enrollmentStmt := SELECT(
 		Enrollment.ID,
 		Enrollment.Key,
+		Enrollment.DeviceSettings,
 		Device.DeviceID,
 		Device.Name,
 	).FROM(
