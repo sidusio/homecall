@@ -182,6 +182,7 @@ func (s *Service) ListDevices(ctx context.Context, req *connect.Request[homecall
 		Device.DeviceID,
 		Device.Name,
 		Device.LastSeen,
+		Enrollment.Key,
 	).FROM(Device.LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID)))
 
 	var devices []struct {
