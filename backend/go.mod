@@ -5,6 +5,7 @@ go 1.21.0
 require (
 	connectrpc.com/connect v1.16.1
 	github.com/ThreeDotsLabs/watermill v1.3.5
+	github.com/auth0/go-jwt-middleware/v2 v2.2.1
 	github.com/go-jet/jet/v2 v2.11.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.17.0
@@ -13,7 +14,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/ory/dockertest/v3 v3.10.0
 	golang.org/x/net v0.21.0
-	golang.org/x/sync v0.5.0
+	golang.org/x/sync v0.6.0
 	google.golang.org/protobuf v1.33.0
 )
 
@@ -63,6 +64,7 @@ require (
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.10.0 // indirect
+	gopkg.in/go-jose/go-jose.v2 v2.6.2 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

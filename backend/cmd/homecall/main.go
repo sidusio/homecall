@@ -1,6 +1,7 @@
 package main
 
 import (
+	"connectrpc.com/connect"
 	"context"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
@@ -20,7 +22,11 @@ import (
 	"sidus.io/home-call/services/deviceapi"
 	"sidus.io/home-call/services/officeapi"
 	"sidus.io/home-call/util"
+	"strings"
 	"time"
+
+	"github.com/auth0/go-jwt-middleware/v2/jwks"
+	"github.com/auth0/go-jwt-middleware/v2/validator"
 )
 
 const (
@@ -39,6 +45,10 @@ type Config struct {
 	JitsiAppId   string `envconfig:"JITSI_APP_ID" required:"true"`
 	JitsiKeyId   string `envconfig:"JITSI_KEY_ID" required:"true"`
 	JitsiKeyFile string `envconfig:"JITSI_KEY_FILE" required:"true"`
+
+	AuthDisabled bool   `envconfig:"AUTH_DISABLED" default:"false"`
+	AuthIssuer   string `envconfig:"AUTH_ISSUER" default:"https://homecall.eu.auth0.com/"`
+	AuthAudience string `envconfig:"AUTH_AUDIENCE" default:"https://office-api.homecall.sidus.io"`
 }
 
 func main() {
@@ -128,6 +138,12 @@ func run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 	officeService := officeapi.NewService(db, broker, jitsiApp, logger.With("component", "officeapi"))
 	logger.Info("service layer created")
 
+	// Http server
+	httpServer, err := setupHttpServer(logger, cfg, deviceService, officeService)
+	if err != nil {
+		return fmt.Errorf("failed to setup http server: %w", err)
+	}
+
 	// Error group for application main lifecycle
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -142,7 +158,7 @@ func run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 		logger.Info("listening on port", "port", cfg.Port)
 		err := util.ListenAndServe(
 			ctx,
-			setupHttpServer(logger, cfg, deviceService, officeService),
+			httpServer,
 			15*time.Second,
 		)
 		if err != nil {
@@ -175,14 +191,162 @@ func setupHttpServer(
 	cfg Config,
 	deviceService *deviceapi.Service,
 	officeService *officeapi.Service,
-) *http.Server {
+) (*http.Server, error) {
+
+	interceptors := []connect.Interceptor{
+		newContextInterceptor(),
+	}
+	var deviceInterceptors []connect.Interceptor
+	var officeInterceptors []connect.Interceptor
+	copy(deviceInterceptors, interceptors)
+	copy(officeInterceptors, interceptors)
+
+	if !cfg.AuthDisabled {
+		authIssuerUrl, err := url.Parse(cfg.AuthIssuer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse auth issuer url: %w", err)
+		}
+
+		authInterceptor, err := newAuthInterceptor(authIssuerUrl, cfg.AuthAudience)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create auth interceptor: %w", err)
+		}
+
+		officeInterceptors = append(officeInterceptors, authInterceptor)
+	}
+
 	mux := http.NewServeMux()
-	mux.Handle(homecallv1alphaconnect.NewDeviceServiceHandler(deviceService))
-	mux.Handle(homecallv1alphaconnect.NewOfficeServiceHandler(officeService))
+	mux.Handle(homecallv1alphaconnect.NewDeviceServiceHandler(
+		deviceService,
+		connect.WithInterceptors(deviceInterceptors...),
+	))
+	mux.Handle(homecallv1alphaconnect.NewOfficeServiceHandler(
+		officeService,
+		connect.WithInterceptors(officeInterceptors...),
+	))
 
 	server := &http.Server{
 		Handler: h2c.NewHandler(mux, &http2.Server{}),
 		Addr:    fmt.Sprintf(":%s", cfg.Port),
 	}
-	return server
+	return server, nil
+}
+
+type contextInterceptor struct{}
+
+func newContextInterceptor() *contextInterceptor {
+	return &contextInterceptor{}
+}
+
+func (i *contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	// Same as previous UnaryInterceptorFunc.
+	return func(
+		ctx context.Context,
+		req connect.AnyRequest,
+	) (connect.AnyResponse, error) {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		return next(ctx, req)
+	}
+}
+
+func (*contextInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return func(
+		ctx context.Context,
+		spec connect.Spec,
+	) connect.StreamingClientConn {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		return next(ctx, spec)
+	}
+}
+
+func (i *contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(
+		ctx context.Context,
+		conn connect.StreamingHandlerConn,
+	) error {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		return next(ctx, conn)
+	}
+}
+
+type authInterceptor struct {
+	jwtValidator *validator.Validator
+}
+
+func newAuthInterceptor(issuer *url.URL, audience string) (*authInterceptor, error) {
+	provider := jwks.NewCachingProvider(issuer, 5*time.Minute)
+
+	jwtValidator, err := validator.New(
+		provider.KeyFunc,
+		validator.RS256,
+		issuer.String(),
+		[]string{audience},
+		validator.WithAllowedClockSkew(time.Minute*5),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create jwt validator: %w", err)
+	}
+
+	return &authInterceptor{
+		jwtValidator: jwtValidator,
+	}, nil
+}
+
+func (i *authInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(
+		ctx context.Context,
+		req connect.AnyRequest,
+	) (connect.AnyResponse, error) {
+		err := i.verifyToken(ctx, req.Header())
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify token: %w", err)
+		}
+		return next(ctx, req)
+	}
+}
+
+func (*authInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return func(
+		ctx context.Context,
+		spec connect.Spec,
+	) connect.StreamingClientConn {
+		return next(ctx, spec)
+	}
+}
+
+func (i *authInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(
+		ctx context.Context,
+		conn connect.StreamingHandlerConn,
+	) error {
+		err := i.verifyToken(ctx, conn.RequestHeader())
+		if err != nil {
+			return fmt.Errorf("failed to verify token: %w", err)
+		}
+
+		return next(ctx, conn)
+	}
+}
+
+func (i *authInterceptor) verifyToken(ctx context.Context, header http.Header) error {
+	token := strings.TrimSpace(
+		strings.TrimPrefix(
+			header.Get("Authorization"),
+			"Bearer ",
+		),
+	)
+
+	if token == "" {
+		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
+	}
+
+	_, err := i.jwtValidator.ValidateToken(ctx, token)
+	if err != nil {
+		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to validate token: %w", err))
+	}
+
+	return nil
 }
