@@ -8,7 +8,7 @@ type Call struct {
 }
 
 func (c *Call) OfficeJWT() (string, error) {
-	token, err := c.app.jitsiJWT(c.roomName, "office", "office")
+	token, err := c.app.jitsiJWT(c.roomName, "Anna-Karin", "office")
 	if err != nil {
 		return "", fmt.Errorf("failed to create office JWT: %w", err)
 	}
@@ -16,7 +16,7 @@ func (c *Call) OfficeJWT() (string, error) {
 }
 
 func (c *Call) DeviceJWT() (string, error) {
-	token, err := c.app.jitsiJWT(c.roomName, "device", "device")
+	token, err := c.app.jitsiJWT(c.roomName, "Johan", "device")
 	if err != nil {
 		return "", fmt.Errorf("failed to create device JWT: %w", err)
 	}
