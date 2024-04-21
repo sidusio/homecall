@@ -33,12 +33,11 @@ const onDetect = async (content: Array<any>) => {
   // Save private key and deviceid in local storage.
   localStorage.setItem('privateKey', privateKeyExport)
   localStorage.setItem('deviceId', res.deviceId)
+  localStorage.setItem('settings', JSON.stringify(res.settings))
 
   // Redirect to the device view.
   router.push('/device')
 }
-
-
 </script>
 
 <template>

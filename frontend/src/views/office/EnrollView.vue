@@ -42,14 +42,18 @@ const enrollDevice = async (e: Event) => {
     </h1>
 
     <form v-if="!enrollmentKey">
-        <input type="text" placeholder="Device Name" v-model="deviceName" />
-        <input type="text" placeholder="User's Name" v-model="usersName" />
+        <input type="text" placeholder="Enhetens namn" v-model="deviceName" />
+        <input type="text" placeholder="Brukarens namn" v-model="usersName" />
         <span class="form-row">
-            <label for="autoanswer">
+            <label class="enroll-device__auto-answer" for="autoanswer">
                 <input id="autoanswer" type="checkbox" v-model="autoAnswer" />
                 Svara automatiskt
             </label>
-            <input type="number" placeholder="Auto Answer Delay" v-model="autoAnswerDelay" />
+            <span class="enroll-device__auto-answer-delay">
+                <span>efter</span>
+                <input type="number" placeholder="Auto Answer Delay" v-model="autoAnswerDelay" />
+                <span>sek</span>
+            </span>
         </span>
 
         <button class="btn" @click="enrollDevice">Registrera enhet</button>
@@ -80,6 +84,10 @@ const enrollDevice = async (e: Event) => {
     justify-content: center;
     height: 100vh;
 
+    &__title {
+        margin-bottom: 1.5rem;
+    }
+
     &__desc {
         margin-bottom: 2rem;
         text-align: center;
@@ -90,7 +98,7 @@ const enrollDevice = async (e: Event) => {
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: .5rem;
+        gap: 1rem;
 
         input {
             padding: 1rem;
@@ -98,17 +106,38 @@ const enrollDevice = async (e: Event) => {
             border: 1px solid #ccc;
             width: 100%;
             font-size: 1rem;
-
-            &[type="number"] {
-                width: 20%;
-            }
         }
     }
 
     .form-row {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         width: 100%;
+    }
+
+    &__auto-answer {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        width: 50%;
+
+        #autoanswer {
+            height: 1.25rem;
+            width: 1.25rem;
+        }
+    }
+
+    &__auto-answer-delay {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: .5rem;
+        width: 50%;
+
+        > input {
+            width: 40% !important;
+        }
     }
 
     &__qrcode-container {

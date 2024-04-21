@@ -47,7 +47,7 @@ onMounted(() => {
               class="home__device-call"
               :to="`/call/${device.id}`"
             >
-              <img src="./../../assets/icons/phone.svg">
+              <img src="@/assets/icons/phone.svg">
             </router-link>
           </li>
         </ul>
@@ -81,20 +81,16 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 350px;
+    width: 400px;
     background-color: white;
     box-shadow: 0 0 7px rgba(0, 0, 0, 0.1);
-  }
-
-  &__device-container {
-    padding: 0 1rem;
   }
 
   &__device-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 1rem;
+    padding: 1rem 1rem 0 1rem;
 
     p {
       font-size: 0.8rem;
@@ -164,6 +160,12 @@ onMounted(() => {
         background-color: rgb(0, 184, 3);
         box-shadow: 0 0 7px rgb(0, 184, 3);
       }
+    }
+  }
+
+  @media only screen and (max-width: 768px) {
+    &__dashboard {
+      display: none !important;
     }
   }
 

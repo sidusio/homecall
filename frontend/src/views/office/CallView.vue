@@ -21,7 +21,7 @@ onMounted(async () => {
       prejoinConfig: {
         enabled: false
       },
-      toolbarButtons: [ 'hangup' ],
+      toolbarButtons: [ 'hangup', 'microphone', 'camera' ],
       toolbarConfig: {
         alwaysVisible: true,
       },
