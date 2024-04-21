@@ -137,7 +137,7 @@ func (b *Broker) PublishEnrollment(deviceId string) error {
 }
 
 func (b *Broker) SubscribeToEnrollment(ctx context.Context, deviceId string, handler func() error) error {
-	messages, err := b.callBroadcaster.Subscribe(ctx, enrollmentsTopic)
+	messages, err := b.enrollmentBroadcaster.Subscribe(ctx, enrollmentsTopic)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to enrollments: %w", err)
 	}

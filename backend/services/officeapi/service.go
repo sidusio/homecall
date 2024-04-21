@@ -157,7 +157,7 @@ func (s *Service) WaitForEnrollment(ctx context.Context, req *connect.Request[ho
 	}
 
 	err = s.broker.SubscribeToEnrollment(ctx, device.GetId(), func() error {
-		device, err := s.getDevice(ctx, req.Msg.GetDeviceId())
+		device, err := s.getDevice(ctx, device.GetId())
 		if err != nil {
 			return fmt.Errorf("failed to get device: %w", err)
 		}
