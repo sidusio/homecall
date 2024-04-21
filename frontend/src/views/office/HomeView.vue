@@ -10,7 +10,7 @@ interface Device {
 const devices = ref<Device[]>([])
 
 const listDevices = async () => {
-  const res = await officeClient.listDevices()
+  const res = await officeClient.listDevices({})
 
   devices.value = res.devices
 }

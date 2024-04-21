@@ -7,7 +7,6 @@ import { useRoute, useRouter } from 'vue-router';
 const router = useRouter()
 
 const deviceName = ref('')
-const usersName = ref('')
 const autoAnswer = ref(false)
 const autoAnswerDelay = ref(0)
 
@@ -17,17 +16,16 @@ const showContinueBtn = ref(false)
 const enrollDevice = async (e: Event) => {
     e.preventDefault()
 
-    const res = await officeClient.enrollDevice({
+    const res = await officeClient.createDevice({
         name: deviceName.value,
-        settings: {
-            usersName: usersName.value,
+        defaultSettings: {
             autoAnswer: autoAnswer.value,
             autoAnswerDelaySeconds: BigInt(autoAnswerDelay.value)
         }
     })
 
     // Set the enrollment key from the response.
-    enrollmentKey.value = res.enrollmentKey
+    enrollmentKey.value = res.device?.enrollmentKey || ''
 
     if(enrollmentKey.value) {
         showContinueBtn.value = true
@@ -43,7 +41,6 @@ const enrollDevice = async (e: Event) => {
 
     <form v-if="!enrollmentKey">
         <input type="text" placeholder="Enhetens namn" v-model="deviceName" />
-        <input type="text" placeholder="Brukarens namn" v-model="usersName" />
         <span class="form-row">
             <label class="enroll-device__auto-answer" for="autoanswer">
                 <input id="autoanswer" type="checkbox" v-model="autoAnswer" />
