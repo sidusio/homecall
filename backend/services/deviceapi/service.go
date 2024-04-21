@@ -43,6 +43,7 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alp
 		Enrollment.Key,
 		Enrollment.DeviceSettings,
 		Device.DeviceID,
+		Device.ID,
 		Device.Name,
 	).FROM(
 		Enrollment.
@@ -71,7 +72,7 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alp
 
 	deviceUpdateStmt := Device.UPDATE().SET(
 		Device.PublicKey.SET(String(req.Msg.GetPublicKey())),
-	).WHERE(Device.ID.EQ(Enrollment.ID))
+	).WHERE(Device.ID.EQ(Int32(enrollment.Device.ID)))
 
 	_, err = deviceUpdateStmt.ExecContext(ctx, s.db)
 	if err != nil {
