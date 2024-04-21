@@ -131,7 +131,10 @@ func (s *Service) WaitForCall(ctx context.Context, req *connect.Request[homecall
 
 	}
 
-	publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(device.PublicKey))
+	if device.PublicKey == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("device not enrolled"))
+	}
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(*device.PublicKey))
 	if err != nil {
 		return fmt.Errorf("failed to parse public key: %w", err)
 	}

@@ -106,7 +106,6 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 			Device: &homecallv1alpha.Device{
 				Id:            deviceId,
 				Name:          req.Msg.GetName(),
-				Enrolled:      false,
 				EnrollmentKey: enrollmentKey,
 				Online:        false,
 			},
