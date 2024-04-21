@@ -12,6 +12,7 @@ onMounted(async () => {
     deviceId: deviceId
   })
 
+  //@ts-ignore - Jitsi is not typed.
   const api = new JitsiMeetExternalAPI('8x8.vc', {
     roomName: res.jitsiRoomId,
     jwt: res.jitsiJwt,

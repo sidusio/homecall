@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import QrcodeVue from 'qrcode.vue'
 import { officeClient } from '@/clients'
-import { useRoute, useRouter } from 'vue-router';
 
-const router = useRouter()
+interface Enrollment {
+  enrollmentKey: string;
+  deviceId: string;
+}
 
 const deviceName = ref('')
 const autoAnswer = ref(false)
 const autoAnswerDelay = ref(0)
 
-const enrollmentKey = ref('')
-const showContinueBtn = ref(false)
+const emit = defineEmits({
+    registered(enrollment: Enrollment) {
+        return enrollment
+    }
+})
 
 const enrollDevice = async (e: Event) => {
     e.preventDefault()
@@ -24,57 +28,42 @@ const enrollDevice = async (e: Event) => {
         }
     })
 
-    // Set the enrollment key from the response.
-    enrollmentKey.value = res.device?.enrollmentKey || ''
-
-    if(enrollmentKey.value) {
-        showContinueBtn.value = true
+    if(res.device?.enrollmentKey) {
+        emit('registered', {
+            enrollmentKey: res.device.enrollmentKey,
+            deviceId: res.device.id
+        })
     }
 }
 </script>
 
 <template>
-  <main class="enroll-device">
-    <h1 class="enroll-device__title">
-        Registrera enhet
-    </h1>
+    <div class="register-device">
+        <h1 class="register-device__title">
+            Registrera enhet
+        </h1>
 
-    <form v-if="!enrollmentKey">
-        <input type="text" placeholder="Enhetens namn" v-model="deviceName" />
-        <span class="form-row">
-            <label class="enroll-device__auto-answer" for="autoanswer">
-                <input id="autoanswer" type="checkbox" v-model="autoAnswer" />
-                Svara automatiskt
-            </label>
-            <span class="enroll-device__auto-answer-delay">
-                <span>efter</span>
-                <input type="number" placeholder="Auto Answer Delay" v-model="autoAnswerDelay" />
-                <span>sek</span>
+        <form>
+            <input type="text" placeholder="Enhetens namn" v-model="deviceName" />
+            <span class="form-row">
+                <label class="register-device__auto-answer" for="autoanswer">
+                    <input id="autoanswer" type="checkbox" v-model="autoAnswer" />
+                    Svara automatiskt
+                </label>
+                <span class="register-device__auto-answer-delay">
+                    <span>efter</span>
+                    <input type="number" placeholder="Auto Answer Delay" v-model="autoAnswerDelay" />
+                    <span>sek</span>
+                </span>
             </span>
-        </span>
 
-        <button class="btn" @click="enrollDevice">Registrera enhet</button>
-    </form>
-
-    <div class="enroll-device__qrcode-container" v-else>
-        <p class="enroll-device__desc">
-            Skanna QR-koden med enheten.
-        </p>
-        <qrcode-vue
-            :value="enrollmentKey"
-            :size="300"
-            level="H"
-        />
-
-        <router-link class="btn" to="/" v-if="showContinueBtn">
-            Jag har skannat QR-koden!
-        </router-link>
+            <button class="btn" @click="enrollDevice">Registrera enhet</button>
+        </form>
     </div>
-  </main>
 </template>
 
 <style lang="scss" scoped>
-.enroll-device {
+.register-device {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -83,11 +72,6 @@ const enrollDevice = async (e: Event) => {
 
     &__title {
         margin-bottom: 1.5rem;
-    }
-
-    &__desc {
-        margin-bottom: 2rem;
-        text-align: center;
     }
 
     form {
@@ -135,12 +119,6 @@ const enrollDevice = async (e: Event) => {
         > input {
             width: 40% !important;
         }
-    }
-
-    &__qrcode-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
     }
 }
 

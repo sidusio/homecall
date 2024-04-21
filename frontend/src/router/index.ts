@@ -9,11 +9,6 @@ const router = createRouter({
       component: () => import('../views/office/HomeView.vue')
     },
     {
-      path: '/enroll',
-      name: 'Enroll Device',
-      component: () => import('../views/office/EnrollView.vue')
-    },
-    {
       path: '/call/:deviceId',
       name: 'Call',
       component: () => import('../views/office/CallView.vue')

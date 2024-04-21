@@ -68,6 +68,7 @@ watch(activeCall, async () => {
     return
   }
 
+  //@ts-ignore - Jitsi is not typed.
   jitsiAPI = new JitsiMeetExternalAPI('8x8.vc', {
     roomName: activeCall.value.jitsiRoomId,
     jwt: activeCall.value.jitsiJwt,
