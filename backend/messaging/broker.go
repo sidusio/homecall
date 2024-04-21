@@ -7,10 +7,14 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 )
 
-const callsTopic = "homecall.calls"
+const (
+	callsTopic       = "homecall.calls"
+	enrollmentsTopic = "homecall.enrollments"
+)
 
 type pubSub interface {
 	message.Publisher
@@ -32,21 +36,47 @@ func NewBroker(logger *slog.Logger) (*Broker, error) {
 	}
 	callBroadcaster.AddSubscription(callsTopic)
 
+	enrollmentBroadcaster, err := gochannel.NewFanOut(baseChannel, wLogger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create enrollment broadcaster: %w", err)
+	}
+	enrollmentBroadcaster.AddSubscription(enrollmentsTopic)
+
 	return &Broker{
-		baseChannel:     baseChannel,
-		callBroadcaster: callBroadcaster,
+		baseChannel:           baseChannel,
+		callBroadcaster:       callBroadcaster,
+		enrollmentBroadcaster: enrollmentBroadcaster,
 	}, nil
 }
 
 type Broker struct {
-	baseChannel     pubSub
-	callBroadcaster *gochannel.FanOut
+	baseChannel           pubSub
+	callBroadcaster       *gochannel.FanOut
+	enrollmentBroadcaster *gochannel.FanOut
 }
 
 func (b *Broker) Run(ctx context.Context) error {
-	err := b.callBroadcaster.Run(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		err := b.callBroadcaster.Run(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to run call broadcaster: %w", err)
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		err := b.enrollmentBroadcaster.Run(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to run enrollment broadcaster: %w", err)
+		}
+		return nil
+	})
+
+	err := eg.Wait()
 	if err != nil {
-		return fmt.Errorf("failed to run call-broadcaster: %w", err)
+		return fmt.Errorf("broker exited: %w", err)
 	}
 	return nil
 }
@@ -73,7 +103,7 @@ func (b *Broker) PublishCall(call Call) error {
 	return b.baseChannel.Publish(callsTopic, message.NewMessage(watermill.NewULID(), callBytes))
 }
 
-func (b *Broker) SubscribeToCalls(ctx context.Context, handler func(Call) error) error {
+func (b *Broker) SubscribeToCalls(ctx context.Context, deviceId string, handler func(Call) error) error {
 	messages, err := b.callBroadcaster.Subscribe(ctx, callsTopic)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to calls: %w", err)
@@ -83,13 +113,48 @@ func (b *Broker) SubscribeToCalls(ctx context.Context, handler func(Call) error)
 		var call Call
 		err := json.Unmarshal(msg.Payload, &call)
 		if err != nil {
+			msg.Nack()
 			return fmt.Errorf("failed to unmarshal call: %w", err)
+		}
+
+		if call.DeviceID != deviceId {
+			msg.Ack()
+			continue
 		}
 
 		err = handler(call)
 		if err != nil {
+			msg.Nack()
 			return fmt.Errorf("failed to handle call: %w", err)
 		}
+		msg.Ack()
+	}
+	return nil
+}
+
+func (b *Broker) PublishEnrollment(deviceId string) error {
+	return b.baseChannel.Publish(enrollmentsTopic, message.NewMessage(watermill.NewULID(), []byte(deviceId)))
+}
+
+func (b *Broker) SubscribeToEnrollment(ctx context.Context, deviceId string, handler func() error) error {
+	messages, err := b.callBroadcaster.Subscribe(ctx, enrollmentsTopic)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to enrollments: %w", err)
+	}
+
+	for msg := range messages {
+
+		if string(msg.Payload) != deviceId {
+			msg.Ack()
+			continue
+		}
+
+		err = handler()
+		if err != nil {
+			msg.Nack()
+			return fmt.Errorf("failed to handle enrollment: %w", err)
+		}
+		msg.Ack()
 	}
 	return nil
 }

@@ -9,29 +9,35 @@ import "homecall/v1alpha/settings.proto";
 // The OfficeService provides methods for managing devices and calls.
 // This service is intended to be used by the office application.
 service OfficeService {
-    // EnrollDevice starts the enrollment process for a new device.
-    rpc EnrollDevice(EnrollDeviceRequest) returns (EnrollDeviceResponse);
+    // CreateDevice creates a new device.
+    rpc CreateDevice(CreateDeviceRequest) returns (CreateDeviceResponse);
 
     // ListDevices returns a list of all devices.
     rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
 
+    // RemoveDevice removes a device from the list of devices.
+    rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+
     // StartCall starts a call with the specified device.
     rpc StartCall(StartCallRequest) returns (StartCallResponse);
+
+    // WaitForEnrollment is called to get notified about device enrollment.
+    // This call is long-lived and will return when device is enrolled.
+    rpc WaitForEnrollment(WaitForEnrollmentRequest) returns (stream WaitForEnrollmentResponse);
 }
 
 // DeviceSettings contains the settings for a device.
-message EnrollDeviceRequest {
+message CreateDeviceRequest {
     // The name of the device.
     string name = 1;
     // Default settings for the device.
-    DeviceSettings settings = 2;
+    DeviceSettings default_settings = 2;
 }
 
 // EnrollDeviceResponse contains the enrollment key for the device.
-message EnrollDeviceResponse {
-    // The enrollment key for the device.
-    // This key is used to authenticate the device during the enrollment process.
-    string enrollment_key = 1;
+message CreateDeviceResponse {
+    // The new device.
+    Device device = 2;
 }
 
 // ListDevicesRequest is the request for the ListDevices method.
@@ -61,10 +67,41 @@ message StartCallResponse {
     string jitsi_jwt = 3;
 }
 
+// RemoveDeviceRequest is the request for the RemoveDevice method.
+message RemoveDeviceRequest {
+    // The ID of the device to remove.
+    string device_id = 1;
+}
+
+// RemoveDeviceResponse is the response for the RemoveDevice method.
+message RemoveDeviceResponse {
+    // The device that was removed.
+    Device device = 1;
+}
+
+// WaitForEnrollmentRequest is the request for the WaitForEnrollment method.
+message WaitForEnrollmentRequest {
+    // The ID of the device to wait for.
+    string device_id = 1;
+}
+
+// WaitForEnrollmentResponse is the response for the WaitForEnrollment method.
+message WaitForEnrollmentResponse {
+    // The device that was enrolled.
+    Device device = 1;
+}
+
 // Device represents a device.
 message Device {
     // The ID of the device.
     string id = 1;
     // The name of the device.
     string name = 2;
+    // The enrollment key for the device.
+    // This key is used to authenticate the device during the enrollment process.
+    // The key is only set if the device is not enrolled.
+    string enrollment_key = 3;
+    // Whether the device is online or offline.
+    // Online devices are currently connected to the server.
+    bool online = 4;
 }

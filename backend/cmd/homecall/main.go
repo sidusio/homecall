@@ -124,8 +124,8 @@ func run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 	logger.Info("message broker created")
 
 	// Service layer
-	deviceService := deviceapi.NewService(db, broker)
-	officeService := officeapi.NewOfficeService(db, broker, jitsiApp)
+	deviceService := deviceapi.NewService(db, broker, logger)
+	officeService := officeapi.NewService(db, broker, jitsiApp, logger.With("component", "officeapi"))
 	logger.Info("service layer created")
 
 	// Error group for application main lifecycle
@@ -174,7 +174,7 @@ func setupHttpServer(
 	logger *slog.Logger,
 	cfg Config,
 	deviceService *deviceapi.Service,
-	officeService *officeapi.OfficeService,
+	officeService *officeapi.Service,
 ) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle(homecallv1alphaconnect.NewDeviceServiceHandler(deviceService))

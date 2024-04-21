@@ -7,43 +7,53 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/go-jet/jet/v2/postgres"
+	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
+	"log/slog"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha"
+	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
 	"sidus.io/home-call/gen/jetdb/public/model"
-	"sidus.io/home-call/gen/jetdb/public/table"
+	. "sidus.io/home-call/gen/jetdb/public/table"
 	"sidus.io/home-call/messaging"
 	"strings"
 	"time"
 )
 
-func NewService(db *sql.DB, broker *messaging.Broker) *Service {
+var _ homecallv1alphaconnect.DeviceServiceHandler = (*Service)(nil)
+
+func NewService(db *sql.DB, broker *messaging.Broker, logger *slog.Logger) *Service {
 	return &Service{
 		db:     db,
 		broker: broker,
+		logger: logger,
 	}
 }
 
 type Service struct {
 	db     *sql.DB
 	broker *messaging.Broker
+	logger *slog.Logger
 }
 
 func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alpha.EnrollRequest]) (*connect.Response[homecallv1alpha.EnrollResponse], error) {
-	enrollmentStmt := postgres.SELECT(
-		table.Enrollment.AllColumns.Except(table.Enrollment.Key),
+	enrollmentStmt := SELECT(
+		Enrollment.ID,
+		Enrollment.Key,
+		Device.DeviceID,
+		Device.Name,
 	).FROM(
-		table.Enrollment.
-			LEFT_JOIN(table.Device, table.Enrollment.ID.EQ(table.Device.EnrollmentID)),
+		Enrollment.
+			LEFT_JOIN(Device, Enrollment.ID.EQ(Device.ID)),
 	).WHERE(
-		table.Enrollment.Key.EQ(postgres.String(req.Msg.GetEnrollmentKey())).
-			AND(table.Device.ID.IS_NULL()),
+		Enrollment.Key.EQ(String(req.Msg.GetEnrollmentKey())),
 	).LIMIT(1)
 
-	var enrollment model.Enrollment
+	var enrollment struct {
+		model.Enrollment
+		model.Device
+	}
 	err := enrollmentStmt.QueryContext(ctx, s.db, &enrollment)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
@@ -58,24 +68,31 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alp
 		return nil, fmt.Errorf("failed to unmarshal device settings: %w", err)
 	}
 
-	deviceId := uuid.New().String()
-	deviceInsertStmt := table.Device.INSERT(table.Device.AllColumns.Except(table.Device.ID)).MODEL(
-		&model.Device{
-			EnrollmentID: enrollment.ID,
-			DeviceID:     deviceId,
-			Name:         enrollment.DeviceName,
-			PublicKey:    req.Msg.GetPublicKey(),
-		})
+	deviceUpdateStmt := Device.UPDATE().SET(
+		Device.PublicKey.SET(String(req.Msg.GetPublicKey())),
+	).WHERE(Device.ID.EQ(Enrollment.ID))
 
-	_, err = deviceInsertStmt.ExecContext(ctx, s.db)
+	_, err = deviceUpdateStmt.ExecContext(ctx, s.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert device: %w", err)
 	}
 
+	enrollmentDeleteStmt := Enrollment.DELETE().WHERE(Enrollment.ID.EQ(Int32(enrollment.Enrollment.ID)))
+	_, err = enrollmentDeleteStmt.ExecContext(ctx, s.db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete enrollment: %w", err)
+	}
+
+	err = s.broker.PublishEnrollment(enrollment.DeviceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish enrollment: %w", err)
+	}
+
 	return &connect.Response[homecallv1alpha.EnrollResponse]{
 		Msg: &homecallv1alpha.EnrollResponse{
-			DeviceId: deviceId,
+			DeviceId: enrollment.DeviceID,
 			Settings: &deviceSettings,
+			Name:     enrollment.Name,
 		},
 	}, nil
 }
@@ -96,12 +113,12 @@ func (s *Service) WaitForCall(ctx context.Context, req *connect.Request[homecall
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("missing device id"))
 	}
 
-	deviceStmt := postgres.SELECT(
-		table.Device.PublicKey,
+	deviceStmt := SELECT(
+		Device.PublicKey,
 	).FROM(
-		table.Device,
+		Device,
 	).WHERE(
-		table.Device.DeviceID.EQ(postgres.String(deviceId)),
+		Device.DeviceID.EQ(String(deviceId)),
 	).LIMIT(1)
 
 	var device model.Device
@@ -124,11 +141,36 @@ func (s *Service) WaitForCall(ctx context.Context, req *connect.Request[homecall
 		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid token: %w", err))
 	}
 
-	err = s.broker.SubscribeToCalls(ctx, func(call messaging.Call) error {
-		if call.DeviceID != deviceId {
-			return nil
-		}
+	setLastSeen := func() {
+		now := time.Now()
+		timestamp := Timestamp(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+		deviceUpdateStmt := Device.UPDATE().SET(
+			Device.LastSeen.SET(timestamp),
+		).WHERE(Device.DeviceID.EQ(String(deviceId)))
 
+		_, err = deviceUpdateStmt.ExecContext(ctx, s.db)
+		if err != nil {
+			s.logger.Error("failed to update last seen", "error", err)
+		}
+	}
+
+	go func() {
+		setLastSeen()
+
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				setLastSeen()
+			}
+		}
+	}()
+
+	err = s.broker.SubscribeToCalls(ctx, deviceId, func(call messaging.Call) error {
 		err = stream.Send(&homecallv1alpha.WaitForCallResponse{
 			CallId:      call.ID,
 			JitsiJwt:    call.JitsiJwt,

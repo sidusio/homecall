@@ -35,6 +35,8 @@ message EnrollResponse {
     // The device settings are the settings for the device.
     // These settings are used to configure the device for the user.
     DeviceSettings settings = 2;
+    // The name of the device.
+    string name = 3;
 }
 
 // WaitForCallRequest is the request to wait for a call.
