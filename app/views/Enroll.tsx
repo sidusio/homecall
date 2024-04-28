@@ -1,23 +1,8 @@
-import { StatusBar } from 'expo-status-bar';
 import {Button, StyleSheet, Text, View} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera/next';
+import {EnrollmentData, isEnrollmentData} from "../services/enrollment";
 
 const homecallProtocolPrefix = 'homecall://';
-
-interface EnrollmentData {
-  enrollmentId: string;
-  enrollmentKey: string;
-  enrollmentUrl: string;
-}
-
-function isEnrollmentData(data: any): data is EnrollmentData {
-  return (
-    typeof data === 'object' &&
-    typeof data.enrollmentId === 'string' &&
-    typeof data.enrollmentKey === 'string' &&
-    typeof data.enrollmentUrl === 'string'
-  );
-}
 
 export default function Enroll(props: {
   onEnroll: (data: EnrollmentData) => void,
@@ -52,7 +37,6 @@ export default function Enroll(props: {
     }
 
     onEnroll(enrollmentData)
-
   }
 
 

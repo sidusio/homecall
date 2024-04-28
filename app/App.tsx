@@ -1,27 +1,66 @@
-import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import Enroll from "./views/Enroll";
 import { useKeepAwake } from 'expo-keep-awake';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {getApiToken, hasCredentials, setupCredentials} from "./services/auth";
+import {EnrollmentData, enroll} from "./services/enrollment";
+import Call from "./views/Call";
+
 
 export default function App() {
   useKeepAwake();
-  let [enrolled, setEnrolled] = useState<boolean>(false);
+  let [enrolled, setEnrolled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setEnrolled(await hasCredentials());
+    })();
+  }, []);
+
+
+  const [apiToken, setApiToken] = useState<string>('');
+  const [instanceUrl, setInstanceUrl] = useState<string>('');
+
+  const renewToken = async () => {
+    const [token, url] = await getApiToken();
+    setApiToken(token);
+    setInstanceUrl(url);
+  }
+
+  useEffect(() => {
+    if (!enrolled) {
+      return;
+    }
+
+    renewToken();
+
+    const interval = setInterval(renewToken, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [enrolled]);
+
+
+  const attemptEnrollment = async (data: EnrollmentData) => {
+    setEnrolled(null);
+    setEnrolled(await enroll(data));
+  }
+
+  // If we don't know if the user is enrolled yet, don't show anything
+  if (enrolled === null) {
+    return <View />;
+  }
 
   if (!enrolled) {
     return <Enroll
-      onEnroll={(data) => {
-        console.log('Enrolled!', data);
-        setEnrolled(true);
-      }}
+      onEnroll={attemptEnrollment}
     />;
   }
 
+  if (!apiToken || !instanceUrl ) {
+    return <View />;
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up app.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <Call instanceUrl={instanceUrl} token={apiToken} />
   );
 }
 
