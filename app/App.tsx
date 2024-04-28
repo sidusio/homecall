@@ -1,8 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import Enroll from "./views/Enroll";
+import { useKeepAwake } from 'expo-keep-awake';
 
 export default function App() {
+  useKeepAwake();
   const enrolled = false;
 
   if (!enrolled) {
