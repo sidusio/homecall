@@ -129,6 +129,7 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*homecallv1al
 		Device.DeviceID,
 		Device.Name,
 		Device.LastSeen,
+		Enrollment.DeviceSettings,
 	).FROM(Device.LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID))).
 		WHERE(Device.DeviceID.EQ(String(deviceID)))
 	var device struct {
