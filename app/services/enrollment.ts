@@ -34,6 +34,7 @@ async function enroll(data: EnrollmentData): Promise<boolean> {
   try {
     // TODO: call the enrollment API with the public key
     console.log('Generated keys', publicKey);
+    // todo: store device settings
   } catch (e) {
     await clearCredentials();
     return false;

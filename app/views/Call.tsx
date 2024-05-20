@@ -59,14 +59,14 @@ export default function Call(props: {
   return (
     <WebView
       style={styles.container}
-      source={{ uri: `${instanceUrl}` }} // todo: add device path
+      source={{ uri: `${instanceUrl}/device` }}
       ref={setWebViewRef}
       onLoad={injectToken}
       injectedJavaScriptObject={{
         app: true,
-        version: 1, // todo
+        version: 1, // todo: get version from git commit hash
         settings: {
-          // todo
+          // todo: get settings from auth service
         }
     }}
     />

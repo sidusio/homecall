@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "expo:build:android": "eas build --profile development --platform android"
   },
   "dependencies": {
     "base64url": "^3.0.1",
