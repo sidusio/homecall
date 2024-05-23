@@ -32,11 +32,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "8ed3c104-f02e-4c4a-b861-d540bb7679c9"
+        "projectId": "c488ea84-3afd-4610-8615-c92e2459a310"
       }
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "owner": "sidus-systems"
   }
 }
