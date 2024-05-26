@@ -44,7 +44,7 @@ const onDetect = async (content: Array<any>) => {
   <main class="enroll-device">
     <div class="enroll-device__qrcode">
       <p class="enroll-device__heading">
-        Skanna QR-koden för att registrera enheten.
+        Skanna QR-koden för att registrera enheten.Hej
       </p>
       <QrcodeStream
         class="enroll-device__qrcode-stream"

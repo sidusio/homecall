@@ -1,11 +1,14 @@
+import applyGlobalPolyfills from "./globals" // <-- Change the path
 import { StyleSheet, Text, View } from 'react-native';
 import Enroll from "./views/Enroll";
 import { useKeepAwake } from 'expo-keep-awake';
 import { useState, useEffect } from 'react';
-import {getApiToken, hasCredentials, setupCredentials} from "./services/auth";
-import {EnrollmentData, enroll} from "./services/enrollment";
+import {getApiToken, hasCredentials, setupCredentials, clearCredentials} from "./services/auth";
+import {EnrollmentData, enroll, getSettings} from "./services/enrollment";
 import Call from "./views/Call";
 
+// Hopefully make TextEncoder available
+applyGlobalPolyfills()
 
 export default function App() {
   useKeepAwake();
@@ -20,19 +23,26 @@ export default function App() {
 
   const [apiToken, setApiToken] = useState<string>('');
   const [instanceUrl, setInstanceUrl] = useState<string>('');
+  const [deviceId, setDeviceId] = useState<string>('');
+  const [settings, setSettings] = useState<any>({});
 
   const renewToken = async () => {
-    const [token, url] = await getApiToken();
+    const [token, url, deviceId] = await getApiToken();
     setApiToken(token);
     setInstanceUrl(url);
+    setDeviceId(deviceId);
   }
 
   useEffect(() => {
+    //clearCredentials();
     if (!enrolled) {
       return;
     }
 
     renewToken();
+    getSettings().then((settings) => {
+      setSettings(settings);
+    });
 
     const interval = setInterval(renewToken, 60 * 1000);
     return () => clearInterval(interval);
@@ -60,7 +70,7 @@ export default function App() {
   }
 
   return (
-    <Call instanceUrl={instanceUrl} token={apiToken} />
+    <Call instanceUrl={instanceUrl} token={apiToken} deviceId={deviceId} settings={settings} />
   );
 }
 

@@ -25,7 +25,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "io.sidus.homecall"
+      "package": "io.sidus.homecall",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.VIDEO_CAPTURE",
+        "android.permission.AUDIO_CAPTURE",
+        "android.permission.MICROPHONE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

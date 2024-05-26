@@ -24,7 +24,6 @@ const listDevices = async () => {
   const res = await officeClient.listDevices({})
 
   devices.value = res.devices.sort((a, b) => a.name.localeCompare(b.name))
-  console.log(res.devices)
 }
 
 const clearEnrollment = () => {

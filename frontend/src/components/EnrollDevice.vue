@@ -1,16 +1,36 @@
 <script setup lang="ts">
 import { officeClient } from '@/clients';
 import QrcodeVue from 'qrcode.vue'
-import { onDeactivated, onMounted, onUnmounted } from 'vue';
+import { computed, onDeactivated, onMounted, onUnmounted } from 'vue';
 
 interface Enrollment {
   enrollmentKey: string;
   deviceId: string;
 }
 
+/**
+ * prepend homecall://
+ * deviceId
+ * enrollmentKey
+ * instanceUrl
+ * audience
+ */
+
+
 const props = defineProps<{
     enrollment: Enrollment;
 }>()
+
+const qrcode = computed(() => {
+    const currentUrlOrigin = window.location.origin
+
+    return 'homecall://' + JSON.stringify({
+        deviceId: props.enrollment.deviceId,
+        enrollmentKey: props.enrollment.enrollmentKey,
+        instanceUrl: currentUrlOrigin + '/api',
+        audience: 'homecall'
+    })
+})
 
 // Define emit enrolled
 const emit = defineEmits({
@@ -54,7 +74,7 @@ onUnmounted(() => {
         </p>
 
         <qrcode-vue
-            :value="enrollment.enrollmentKey"
+            :value="qrcode"
             :size="300"
             level="H"
         />

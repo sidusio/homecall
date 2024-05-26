@@ -14,17 +14,8 @@ interface Call {
   jitsiJwt: string;
 }
 
-// Getting data from localStorage.
-const privateKey = computed(() => {
-  return localStorage.getItem('privateKey')
-})
-
-const deviceId = computed(() => {
-  return localStorage.getItem('deviceId')
-})
-
 const settings = computed((): Settings => {
-  return JSON.parse(localStorage.getItem('settings') || '{}')
+  return (window.deviceData.settings || '{}')
 })
 
 const incomingCall = ref<Call | null>(null)
@@ -43,7 +34,6 @@ watch(incomingCall, async () => {
   if(settings.value.autoAnswer) {
     console.log('Auto answering call (scheduling)')
     setTimeout(() => {
-
       answerCall()
     }, Number(settings.value.autoAnswerDelaySeconds) * 1000)
   }
@@ -105,28 +95,16 @@ watch(activeCall, async () => {
 * Wait for a call to come in.
 */
 const waitForCall = async (): Promise<Call> => {
-  if(!privateKey.value || !deviceId.value) {
-    throw new Error('No private key or device id')
-  }
-
-  const alg = 'RS256'
-  const privateKeyImport = await jose.importPKCS8(privateKey.value, alg)
-  const jwt = await new jose.SignJWT()
-    .setProtectedHeader({ alg })
-    .setIssuedAt()
-    .setIssuer('homecall-device')
-    .setAudience('homecall')
-    .setSubject(deviceId.value)
-    .setExpirationTime('2h')
-    .sign(privateKeyImport)
+  const token = localStorage.getItem('token')
+  const deviceId = window.deviceData.deviceId
 
   const abort = new AbortController()
 
   const resultStream = deviceClient.waitForCall({
-    deviceId: deviceId.value
+    deviceId: deviceId
   }, {
     headers: {
-      Authorization: `Bearer ${jwt}`
+      Authorization: `Bearer ${token}`
     },
     signal: abort.signal
   })
@@ -144,7 +122,11 @@ const waitForCall = async (): Promise<Call> => {
 // OnMounted, start to wait for call.
 onMounted(async () => {
   while(true) {
-    incomingCall.value = await waitForCall()
+    try {
+      incomingCall.value = await waitForCall()
+    } catch (e) {
+      console.error('error: ' + e)
+    }
   }
 })
 </script>

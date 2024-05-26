@@ -1,23 +1,46 @@
-import {StyleSheet} from 'react-native';
+import { StyleSheet } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
+import { Text } from 'react-native';
 import { useState, useEffect } from 'react';
-
-
 
 export default function Call(props: {
   instanceUrl: string,
   token: string,
+  settings: any,
+  deviceId: string,
 }){
   const { token, instanceUrl } = props;
 
   const [webViewRef, setWebViewRef] = useState(null);
 
-  const injectToken = () => {
+  const injectToken = async () => {
     if (!webViewRef) {
       return;
     }
 
-    const jsCode = `window.localStorage.setItem('token', '${token}');`;
+    const jsCode = `
+      window.localStorage.setItem('token', '${token}');
+    `;
+
+    webViewRef.injectJavaScript(jsCode);
+  }
+
+  const injectData = async () => {
+    if (!webViewRef) {
+      return;
+    }
+
+    const reactNativeData = {
+      settings: props.settings,
+      deviceId: props.deviceId,
+    };
+
+    const stringifyReactNativeData = JSON.stringify(reactNativeData);
+
+    const jsCode = `
+      window.deviceData = ${stringifyReactNativeData};
+    `;
 
     webViewRef.injectJavaScript(jsCode);
   }
@@ -25,9 +48,6 @@ export default function Call(props: {
   useEffect(() => {
     injectToken();
   }, [token, webViewRef]);
-
-
-
 
   const [lastRefresh, setLastRefresh] = useState(Date.now());
 
@@ -48,8 +68,44 @@ export default function Call(props: {
     }
 
     webViewRef.reload();
+    initialLoad();
     setLastRefresh(Date.now());
   }
+
+  const injectDebugging = () => {
+    if (!webViewRef) {
+      return;
+    }
+
+    const debugging = `
+     // Debug
+     console = new Object();
+     console.log = function(log) {
+      window.ReactNativeWebView.postMessage(JSON.stringify(log))
+     };
+     console.debug = console.log;
+     console.info = console.log;
+     console.warn = console.log;
+     console.error = console.log;
+     `;
+
+    webViewRef.injectJavaScript(debugging);
+  }
+
+  const onMessage = (event) => {
+    const message = event.nativeEvent.data;
+    console.log('WebView: ' + message);
+  }
+
+  const initialLoad = () => {
+    injectToken();
+    injectData();
+    injectDebugging();
+  }
+
+  useEffect(() => {
+    injectDebugging();
+  }, [webViewRef]);
 
   useEffect(() => {
     const interval = setInterval(refresh, 30 * 60 * 1000);
@@ -61,14 +117,10 @@ export default function Call(props: {
       style={styles.container}
       source={{ uri: `${instanceUrl}/device` }}
       ref={setWebViewRef}
-      onLoad={injectToken}
-      injectedJavaScriptObject={{
-        app: true,
-        version: 1, // todo: get version from git commit hash
-        settings: {
-          // todo: get settings from auth service
-        }
-    }}
+      onLoad={initialLoad}
+      onMessage={onMessage}
+      mediaPlaybackRequiresUserAction={ false }
+      allowsInlineMediaPlayback={ true }
     />
   )
 }

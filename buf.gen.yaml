@@ -16,3 +16,7 @@ plugins:
     out: frontend/gen/connect
   - plugin: buf.build/bufbuild/es:v1.8.0
     out: frontend/gen/connect
+  - plugin: buf.build/connectrpc/es:v1.4.0
+    out: app/gen/connect
+  - plugin: buf.build/bufbuild/es:v1.8.0
+    out: app/gen/connect

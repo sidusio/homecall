@@ -53,7 +53,7 @@ async function setupCredentials(deviceId: string, instanceUrl: string, audience:
  * Gets the credentials for the device
  * @returns The API token and the api url
  */
-async function getApiToken(): Promise<[string, string]> {
+async function getApiToken(): Promise<[string, string, string]> {
   const { privateKey, deviceId, instanceUrl, audience } = await getCredentials();
 
   const jwtHeader = {
@@ -62,7 +62,7 @@ async function getApiToken(): Promise<[string, string]> {
   };
 
   const jwtPayload = {
-    iss: 'homecall/app',
+    iss: 'homecall-device',
     sub: deviceId,
     aud: audience,
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
@@ -72,14 +72,15 @@ async function getApiToken(): Promise<[string, string]> {
   const jwtHeaderBase64 = base64url.fromBase64(Buffer.from(JSON.stringify(jwtHeader)).toString('base64'));
   const jwtPayloadBase64 = base64url.fromBase64(Buffer.from(JSON.stringify(jwtPayload)).toString('base64'));
 
-
   const jwtHeaderPayload = `${jwtHeaderBase64}.${jwtPayloadBase64}`;
 
-  const signature = base64url.fromBase64(await RSA.sign(jwtHeaderPayload, privateKey));
+  const signature = await RSA.signWithAlgorithm(jwtHeaderPayload, privateKey, 'SHA256withRSA')
+  const sanitizedSignature = signature.replace(/\n/g, ''); // RSA library adds newlines to the signature, which is invalid for JWT
+  const urlEncodedSignature = base64url.fromBase64(sanitizedSignature);
 
-  const jwt = `${jwtHeaderPayload}.${signature}`;
+  const jwt = `${jwtHeaderPayload}.${urlEncodedSignature}`;
 
-  return [jwt, instanceUrl];
+  return [jwt, instanceUrl, deviceId];
 }
 
 async function hasCredentials(): Promise<boolean> {

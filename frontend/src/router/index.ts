@@ -17,27 +17,6 @@ const router = createRouter({
       path: '/device',
       name: 'Home (from device)',
       component: () => import('../views/device/HomeView.vue'),
-      beforeEnter: (to, from, next) => {
-        // Redirect to /device/enroll if no device ID is set.
-        if (!localStorage.getItem('deviceId')) {
-          next('/device/enroll')
-          return
-        }
-        next()
-      }
-    },
-    {
-      path: '/device/enroll',
-      name: 'Enroll Device (from device)',
-      component: () => import('../views/device/EnrollView.vue'),
-      beforeEnter: (to, from, next) => {
-        // Redirect to /device if device ID is already set.
-        if (localStorage.getItem('deviceId')) {
-          next('/device')
-          return
-        }
-        next()
-      }
     },
   ]
 })
