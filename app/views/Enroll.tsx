@@ -11,12 +11,34 @@ export default function Enroll(props: {
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
 
+  /**
+   * Handles the barcode scanned event.
+   *
+   * @param data - The enrollment data
+   * @returns True if the device was enrolled, void otherwise.
+   */
+  const barcodeScanned = ({data}: {data: string}) => {
+    if (!data.startsWith(homecallProtocolPrefix)) {
+      console.error('Invalid homecall protocol', data);
+    }
+
+    const enrollmentData: unknown = JSON.parse(data.slice(homecallProtocolPrefix.length));
+    if (!isEnrollmentData(enrollmentData)) {
+      console.error('Invalid enrollment data', enrollmentData);
+      return;
+    }
+
+    onEnroll(enrollmentData)
+  }
+
+  // View rendering.
   if (!permission || !microphonePermission) {
+    // Permissions are "loading".
     return <View/>;
   }
 
   if (!permission.granted || !microphonePermission.granted) {
-    // Camera permissions are not granted yet
+    // Camera and microphone permissions are not granted yet.
     return (
       <View style={styles.container}>
         <Text style={styles.heading}>
@@ -56,22 +78,8 @@ export default function Enroll(props: {
     );
   }
 
-  const barcodeScanned = ({data}: {data: string}) => {
-    if (!data.startsWith(homecallProtocolPrefix)) {
-      console.error('Invalid homecall protocol', data);
-    }
-
-    const enrollmentData: unknown = JSON.parse(data.slice(homecallProtocolPrefix.length));
-    if (!isEnrollmentData(enrollmentData)) {
-      console.error('Invalid enrollment data', enrollmentData);
-      return;
-    }
-
-    onEnroll(enrollmentData)
-  }
-
-
   return (
+    // Camera is ready.
     <View style={styles.cameraContainer}>
       <Text style={styles.information}>
         Skanna QR-koden för att registrera din enhet.

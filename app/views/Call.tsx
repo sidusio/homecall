@@ -1,7 +1,5 @@
 import { StyleSheet } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
-import { Text } from 'react-native';
 import { useState, useEffect } from 'react';
 
 export default function Call(props: {
@@ -13,8 +11,14 @@ export default function Call(props: {
   const { token, instanceUrl } = props;
 
   const [webViewRef, setWebViewRef] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-  const injectToken = async () => {
+  /**
+   * Injects the token into the WebView.
+   *
+   * @returns void
+   */
+  const injectToken = (): void => {
     if (!webViewRef) {
       return;
     }
@@ -26,7 +30,12 @@ export default function Call(props: {
     webViewRef.injectJavaScript(jsCode);
   }
 
-  const injectData = async () => {
+  /**
+   * Injects the device data into the WebView.
+   *
+   * @returns void
+   */
+  const injectData = (): void => {
     if (!webViewRef) {
       return;
     }
@@ -36,7 +45,7 @@ export default function Call(props: {
       deviceId: props.deviceId,
     };
 
-    const stringifyReactNativeData = JSON.stringify(reactNativeData);
+    const stringifyReactNativeData = JSON.stringify(reactNativeData); // Data has to be stringified to be injected.
 
     const jsCode = `
       window.deviceData = ${stringifyReactNativeData};
@@ -45,13 +54,37 @@ export default function Call(props: {
     webViewRef.injectJavaScript(jsCode);
   }
 
-  useEffect(() => {
-    injectToken();
-  }, [token, webViewRef]);
+  /**
+   * Injects debugging code into the WebView.
+   *
+   * @returns void
+   */
+  const injectDebugging = (): void => {
+    if (!webViewRef) {
+      return;
+    }
 
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
+    const debugging = `
+     // Debug
+     console = new Object();
+     console.log = function(log) {
+      window.ReactNativeWebView.postMessage(JSON.stringify(log))
+     };
+     console.debug = console.log;
+     console.info = console.log;
+     console.warn = console.log;
+     console.error = console.log;
+     `;
 
-  const refresh = () => {
+    webViewRef.injectJavaScript(debugging);
+  }
+
+  /**
+   * Refreshes the WebView.
+   *
+   * @returns void
+   */
+  const refresh = (): void => {
     if (!webViewRef) {
       return;
     }
@@ -72,36 +105,31 @@ export default function Call(props: {
     setLastRefresh(Date.now());
   }
 
-  const injectDebugging = () => {
-    if (!webViewRef) {
-      return;
-    }
-
-    const debugging = `
-     // Debug
-     console = new Object();
-     console.log = function(log) {
-      window.ReactNativeWebView.postMessage(JSON.stringify(log))
-     };
-     console.debug = console.log;
-     console.info = console.log;
-     console.warn = console.log;
-     console.error = console.log;
-     `;
-
-    webViewRef.injectJavaScript(debugging);
-  }
-
-  const onMessage = (event) => {
+  /**
+   * Handles messages from the WebView.
+   *
+   * @param event - The message event
+   */
+  const onMessage = (event: any) => {
     const message = event.nativeEvent.data;
     console.log('WebView: ' + message);
   }
 
-  const initialLoad = () => {
+  /**
+   * Initial load of the WebView.
+   *
+   * @returns void
+   */
+  const initialLoad = (): void => {
     injectToken();
     injectData();
     injectDebugging();
   }
+
+  // All the useEffects.
+  useEffect(() => {
+    injectToken();
+  }, [token, webViewRef]);
 
   useEffect(() => {
     injectDebugging();
