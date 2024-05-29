@@ -8,15 +8,6 @@ interface Enrollment {
   deviceId: string;
 }
 
-/**
- * prepend homecall://
- * deviceId
- * enrollmentKey
- * instanceUrl
- * audience
- */
-
-
 const props = defineProps<{
     enrollment: Enrollment;
 }>()
