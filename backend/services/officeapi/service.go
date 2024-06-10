@@ -81,7 +81,11 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 	}()
 
 	// Insert device
-	insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name, Device.TenantID).VALUES(deviceId, req.Msg.GetName(), req.Msg.GetTenantId())
+	insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name, Device.TenantID).VALUES(
+		deviceId,
+		req.Msg.GetName(),
+		SELECT(Tenant.ID).FROM(Tenant).WHERE(Tenant.TenantID.EQ(String(req.Msg.GetTenantId()))).LIMIT(1),
+	)
 	_, err = insertDeviceStmt.ExecContext(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert device: %w", err)
