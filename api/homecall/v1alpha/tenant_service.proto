@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package homecall.v1alpha;
+
+option go_package = "sidus.io/pgc/homecall/v1alpha;homecall";
+
+// The TenantService service provides methods for managing tenants.
+// This service is intended to be used by the office application.
+service TenantService {
+    // CreateTenant creates a new tenant.
+    rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+
+    // ListTenants returns a list of all tenants the user has access to.
+    rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+
+    // RemoveTenant removes a tenant.
+    rpc RemoveTenant(RemoveTenantRequest) returns (RemoveTenantResponse);
+
+    // CreateTenantMember creates a new tenant member.
+    rpc CreateTenantMember(CreateTenantMemberRequest) returns (CreateTenantMemberResponse);
+
+    // ListTenantMembers returns a list of all tenant members.
+    rpc ListTenantMembers(ListTenantMembersRequest) returns (ListTenantMembersResponse);
+
+    // RemoveTenantMember removes a tenant member.
+    rpc RemoveTenantMember(RemoveTenantMemberRequest) returns (RemoveTenantMemberResponse);
+
+    // UpdateTenantMember updates a tenant member.
+    rpc UpdateTenantMember(UpdateTenantMemberRequest) returns (UpdateTenantMemberResponse);
+}
+
+// CreateTenantRequest is the request message for the CreateTenant method.
+message CreateTenantRequest {
+    // The name of the tenant.
+    string name = 1;
+}
+
+// CreateTenantResponse is the response message for the CreateTenant method.
+message CreateTenantResponse {
+    // The tenant that was created.
+    Tenant tenant = 1;
+}
+
+// ListTenantsRequest is the request message for the ListTenants method.
+message ListTenantsRequest {}
+
+// ListTenantsResponse is the response message for the ListTenants method.
+message ListTenantsResponse {
+    // The list of tenants.
+    repeated Tenant tenants = 1;
+}
+
+// RemoveTenantRequest is the request message for the RemoveTenant method.
+message RemoveTenantRequest {
+    // The ID of the tenant to remove.
+    string id = 1;
+}
+
+// RemoveTenantResponse is the response message for the RemoveTenant method.
+message RemoveTenantResponse {}
+
+// CreateTenantMemberRequest is the request message for the CreateTenantMember method.
+message CreateTenantMemberRequest {
+    // The ID of the tenant to add the member to.
+    string tenant_id = 1;
+
+    // The ID of the user to add as a member.
+    string email = 2;
+
+    // The role of the member.
+    Role role = 3;
+}
+
+// CreateTenantMemberResponse is the response message for the CreateTenantMember method.
+message CreateTenantMemberResponse {
+    // The tenant member that was created.
+    TenantMember tenant_member = 1;
+}
+
+// ListTenantMembersRequest is the request message for the ListTenantMembers method.
+message ListTenantMembersRequest {
+    // The ID of the tenant to list the members of.
+    string tenant_id = 1;
+}
+
+// ListTenantMembersResponse is the response message for the ListTenantMembers method.
+message ListTenantMembersResponse {
+    // The list of tenant members.
+    repeated TenantMember tenant_members = 1;
+}
+
+// RemoveTenantMemberRequest is the request message for the RemoveTenantMember method.
+message RemoveTenantMemberRequest {
+    // The id of the tenant to remove the member from.
+    string tenant_id = 1;
+    // The email of the user to remove as a member.
+    string email = 2;
+}
+
+// RemoveTenantMemberResponse is the response message for the RemoveTenantMember method.
+message RemoveTenantMemberResponse {}
+
+// UpdateTenantMemberRequest is the request message for the UpdateTenantMember method.
+message UpdateTenantMemberRequest {
+    // The id of the tenant to update the member on.
+    string tenant_id = 1;
+    // The email of the user member to update.
+    string email = 2;
+
+    // The role of the member.
+    Role role = 3;
+}
+
+// UpdateTenantMemberResponse is the response message for the UpdateTenantMember method.
+message UpdateTenantMemberResponse {}
+
+// Tenant represents a tenant.
+message Tenant {
+    // The ID of the tenant.
+    string id = 1;
+
+    // The name of the tenant.
+    string name = 2;
+
+    // The maximum number of devices the tenant can have.
+    int64 max_devices = 3;
+}
+
+// TenantMember represents a tenant member.
+message TenantMember {
+    // The ID of the tenant.
+    string tenant_id = 2;
+
+    // The ID of the user.
+    string email = 3;
+
+    // The role of the member.
+    Role role = 4;
+}
+
+// Role represents a role.
+enum Role {
+    // The role is unknown.
+    ROLE_UNSPECIFIED = 0;
+
+    // The role is an admin.
+    ROLE_ADMIN = 1;
+
+    // The role is a member.
+    ROLE_MEMBER = 2;
+}

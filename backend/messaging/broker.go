@@ -46,6 +46,7 @@ func NewBroker(logger *slog.Logger) (*Broker, error) {
 		baseChannel:           baseChannel,
 		callBroadcaster:       callBroadcaster,
 		enrollmentBroadcaster: enrollmentBroadcaster,
+		started:               make(chan struct{}),
 	}, nil
 }
 
@@ -53,6 +54,7 @@ type Broker struct {
 	baseChannel           pubSub
 	callBroadcaster       *gochannel.FanOut
 	enrollmentBroadcaster *gochannel.FanOut
+	started               chan struct{}
 }
 
 func (b *Broker) Run(ctx context.Context) error {
@@ -74,6 +76,13 @@ func (b *Broker) Run(ctx context.Context) error {
 		return nil
 	})
 
+	eg.Go(func() error {
+		<-b.callBroadcaster.Running()
+		<-b.enrollmentBroadcaster.Running()
+		close(b.started)
+		return nil
+	})
+
 	err := eg.Wait()
 	if err != nil {
 		return fmt.Errorf("broker exited: %w", err)
@@ -82,16 +91,27 @@ func (b *Broker) Run(ctx context.Context) error {
 }
 
 func (b *Broker) Close() error {
-	err := b.baseChannel.Close()
+
+	err := b.enrollmentBroadcaster.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close baseChannel: %w", err)
+		return fmt.Errorf("failed to close enrollment-broadcaster: %w", err)
 	}
 
 	err = b.callBroadcaster.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close call-broadcaster: %W", err)
+		return fmt.Errorf("failed to close call-broadcaster: %w", err)
 	}
+
+	err = b.baseChannel.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close baseChannel: %w", err)
+	}
+
 	return nil
+}
+
+func (b *Broker) Started() <-chan struct{} {
+	return b.started
 }
 
 func (b *Broker) PublishCall(call Call) error {

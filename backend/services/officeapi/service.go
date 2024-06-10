@@ -17,6 +17,7 @@ import (
 	. "sidus.io/home-call/gen/jetdb/public/table"
 	"sidus.io/home-call/jitsi"
 	"sidus.io/home-call/messaging"
+	"sidus.io/home-call/services/tenantapi"
 	"sidus.io/home-call/util"
 	"time"
 )
@@ -28,23 +29,31 @@ func NewService(
 	broker *messaging.Broker,
 	jitsiApp *jitsi.App,
 	logger *slog.Logger,
+	tenantService *tenantapi.Service,
 ) *Service {
 	return &Service{
-		db:       db,
-		broker:   broker,
-		jitsiApp: jitsiApp,
-		logger:   logger,
+		db:            db,
+		broker:        broker,
+		jitsiApp:      jitsiApp,
+		logger:        logger,
+		tenantService: tenantService,
 	}
 }
 
 type Service struct {
-	db       *sql.DB
-	broker   *messaging.Broker
-	jitsiApp *jitsi.App
-	logger   *slog.Logger
+	db            *sql.DB
+	broker        *messaging.Broker
+	jitsiApp      *jitsi.App
+	logger        *slog.Logger
+	tenantService *tenantapi.Service
 }
 
 func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecallv1alpha.CreateDeviceRequest]) (*connect.Response[homecallv1alpha.CreateDeviceResponse], error) {
+	err := s.tenantService.CanAccessTenant(ctx, req.Msg.GetTenantId(), true)
+	if err != nil {
+		return nil, fmt.Errorf("failed access tenant: %w", err)
+	}
+
 	// Prepare data
 	deviceId := uuid.New().String()
 
@@ -72,7 +81,7 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 	}()
 
 	// Insert device
-	insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name).VALUES(deviceId, req.Msg.GetName())
+	insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name, Device.TenantID).VALUES(deviceId, req.Msg.GetName(), req.Msg.GetTenantId())
 	_, err = insertDeviceStmt.ExecContext(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert device: %w", err)
@@ -100,12 +109,46 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 				Name:          req.Msg.GetName(),
 				EnrollmentKey: enrollmentKey,
 				Online:        false,
+				TenantId:      req.Msg.GetTenantId(),
 			},
 		},
 	}, nil
 }
 
+func (s *Service) UpdateDevice(ctx context.Context, req *connect.Request[homecallv1alpha.UpdateDeviceRequest]) (*connect.Response[homecallv1alpha.UpdateDeviceResponse], error) {
+	err := s.tenantService.CanAccessDevice(ctx, req.Msg.GetDeviceId(), true)
+	if err != nil {
+		return nil, fmt.Errorf("failed access device: %w", err)
+	}
+
+	device, err := s.getDevice(ctx, req.Msg.GetDeviceId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get device: %w", err)
+	}
+
+	newName := req.Msg.GetName()
+
+	updateStmt := Device.UPDATE().SET(Device.Name.SET(String(newName))).WHERE(Device.DeviceID.EQ(String(device.GetId())))
+	_, err = updateStmt.ExecContext(ctx, s.db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update device: %w", err)
+	}
+
+	device.Name = newName
+
+	return &connect.Response[homecallv1alpha.UpdateDeviceResponse]{
+		Msg: &homecallv1alpha.UpdateDeviceResponse{
+			Device: device,
+		},
+	}, nil
+}
+
 func (s *Service) RemoveDevice(ctx context.Context, req *connect.Request[homecallv1alpha.RemoveDeviceRequest]) (*connect.Response[homecallv1alpha.RemoveDeviceResponse], error) {
+	err := s.tenantService.CanAccessDevice(ctx, req.Msg.GetDeviceId(), true)
+	if err != nil {
+		return nil, fmt.Errorf("failed access device: %w", err)
+	}
+
 	device, err := s.getDevice(ctx, req.Msg.GetDeviceId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get device: %w", err)
@@ -130,11 +173,16 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*homecallv1al
 		Device.Name,
 		Device.LastSeen,
 		Enrollment.DeviceSettings,
-	).FROM(Device.LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID))).
-		WHERE(Device.DeviceID.EQ(String(deviceID)))
+		Tenant.TenantID,
+	).FROM(
+		Device.
+			LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID)).
+			LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)),
+	).WHERE(Device.DeviceID.EQ(String(deviceID)))
 	var device struct {
 		model.Device
 		model.Enrollment
+		model.Tenant
 	}
 	err := deviceStmt.QueryContext(ctx, s.db, &device)
 	if err != nil {
@@ -148,10 +196,16 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*homecallv1al
 		Name:          device.Device.Name,
 		EnrollmentKey: device.Enrollment.Key,
 		Online:        device.Device.LastSeen != nil && device.Device.LastSeen.After(time.Now().Add(-2*time.Minute)),
+		TenantId:      device.Tenant.TenantID,
 	}, nil
 }
 
 func (s *Service) WaitForEnrollment(ctx context.Context, req *connect.Request[homecallv1alpha.WaitForEnrollmentRequest], stream *connect.ServerStream[homecallv1alpha.WaitForEnrollmentResponse]) error {
+	err := s.tenantService.CanAccessDevice(ctx, req.Msg.GetDeviceId(), true)
+	if err != nil {
+		return fmt.Errorf("failed access device: %w", err)
+	}
+
 	device, err := s.getDevice(ctx, req.Msg.GetDeviceId())
 	if err != nil {
 		return fmt.Errorf("failed to get device: %w", err)
@@ -179,18 +233,28 @@ func (s *Service) WaitForEnrollment(ctx context.Context, req *connect.Request[ho
 
 // ListDevices returns a list of all devices.
 func (s *Service) ListDevices(ctx context.Context, req *connect.Request[homecallv1alpha.ListDevicesRequest]) (*connect.Response[homecallv1alpha.ListDevicesResponse], error) {
+	tenantId := req.Msg.GetTenantId()
+
+	err := s.tenantService.CanAccessTenant(ctx, tenantId, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed access device: %w", err)
+	}
+
 	devicesStmt := SELECT(
 		Device.DeviceID,
 		Device.Name,
 		Device.LastSeen,
 		Enrollment.Key,
-	).FROM(Device.LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID)))
+	).FROM(Device.
+		LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID)).
+		LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)),
+	).WHERE(Tenant.TenantID.EQ(String(tenantId)))
 
 	var devices []struct {
 		model.Device
 		model.Enrollment
 	}
-	err := devicesStmt.QueryContext(ctx, s.db, &devices)
+	err = devicesStmt.QueryContext(ctx, s.db, &devices)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query database: %w", err)
 	}
@@ -214,6 +278,11 @@ func (s *Service) ListDevices(ctx context.Context, req *connect.Request[homecall
 
 // StartCall starts a call with the specified device.
 func (s *Service) StartCall(ctx context.Context, req *connect.Request[homecallv1alpha.StartCallRequest]) (*connect.Response[homecallv1alpha.StartCallResponse], error) {
+	err := s.tenantService.CanAccessDevice(ctx, req.Msg.GetDeviceId(), false)
+	if err != nil {
+		return nil, fmt.Errorf("failed access device: %w", err)
+	}
+
 	device, err := s.getDevice(ctx, req.Msg.GetDeviceId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get device: %w", err)
