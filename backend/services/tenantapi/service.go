@@ -377,7 +377,7 @@ func (s *Service) CanAccessDevice(ctx context.Context, deviceID string, adminReq
 	}
 
 	// Check if the user has access to the tenant
-	stmt := SELECT(COUNT(Int(1)).AS("count")).FROM(
+	stmt := SELECT(COUNT(User.ID).AS("count")).FROM(
 		Device.
 			LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)).
 			LEFT_JOIN(UserTenant, UserTenant.TenantID.EQ(Tenant.ID)).
