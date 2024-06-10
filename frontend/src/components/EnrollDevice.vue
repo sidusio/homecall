@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { officeClient } from '@/clients';
 import QrcodeVue from 'qrcode.vue'
-import { computed, onDeactivated, onMounted, onUnmounted } from 'vue';
+import { useAuth0 } from '@auth0/auth0-vue';
+import { computed, onMounted, onUnmounted } from 'vue';
+
+const { getAccessTokenSilently } = useAuth0();
 
 interface Enrollment {
   enrollmentKey: string;
@@ -36,9 +39,17 @@ const emit = defineEmits({
 const abort = new AbortController();
 
 const waitForEnrollment = async (): Promise<string> => {
+    const token = await getAccessTokenSilently();
+
     const devices = officeClient.waitForEnrollment({
-        deviceId: props.enrollment.deviceId
-    }, { signal: abort.signal })
+        deviceId: props.enrollment.deviceId,
+    },
+    {
+        signal: abort.signal,
+        headers: {
+            Authorization: 'Bearer ' + token
+        }
+    })
 
     for await (const res of devices) {
         abort.abort()

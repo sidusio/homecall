@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { officeClient } from '@/clients'
+import { useAuth0 } from '@auth0/auth0-vue';
+
+const { getAccessTokenSilently } = useAuth0();
 
 interface Enrollment {
   enrollmentKey: string;
@@ -20,13 +23,27 @@ const emit = defineEmits({
 const enrollDevice = async (e: Event) => {
     e.preventDefault()
 
+    const tenantId = localStorage.getItem('tenantId')
+
+    if(!tenantId) {
+        return;
+    }
+
+    const token = await getAccessTokenSilently();
+    const auth = {
+        headers: {
+            Authorization: 'Bearer ' + token
+        }
+    }
+
     const res = await officeClient.createDevice({
         name: deviceName.value,
         defaultSettings: {
             autoAnswer: autoAnswer.value,
             autoAnswerDelaySeconds: BigInt(autoAnswerDelay.value)
-        }
-    })
+        },
+        tenantId: tenantId
+    }, auth)
 
     if(res.device?.enrollmentKey) {
         emit('registered', {

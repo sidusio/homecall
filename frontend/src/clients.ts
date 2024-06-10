@@ -4,6 +4,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 // Import service definition that you want to connect to.
 import { OfficeService } from "./../gen/connect/homecall/v1alpha/office_service_connect";
 import { DeviceService } from "./../gen/connect/homecall/v1alpha/device_service_connect";
+import { TenantService } from "./../gen/connect/homecall/v1alpha/tenant_service_connect";
 
 // The transport defines what type of endpoint we're hitting.
 // In our example we'll be communicating with a Connect endpoint.
@@ -17,5 +18,6 @@ const transport = createConnectTransport({
 // definition with the transport.
 const officeClient = createPromiseClient(OfficeService, transport);
 const deviceClient = createPromiseClient(DeviceService, transport);
+const tenantClient = createPromiseClient(TenantService, transport);
 
-export { officeClient, deviceClient };
+export { officeClient, deviceClient, tenantClient };

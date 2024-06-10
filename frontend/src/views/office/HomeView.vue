@@ -3,6 +3,10 @@ import { officeClient } from '@/clients';
 import { onMounted, ref } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
+import LogoutButton from '@/components/LogoutButton.vue';
+import { useAuth0 } from '@auth0/auth0-vue';
+
+const { getAccessTokenSilently } = useAuth0();
 
 interface Device {
   id: string;
@@ -21,7 +25,22 @@ const enrollment = ref<Enrollment | null>(null)
 const devices = ref<Device[]>([])
 
 const listDevices = async () => {
-  const res = await officeClient.listDevices({})
+  const tenantId = localStorage.getItem('tenantId')
+
+  if(!tenantId) {
+    return;
+  }
+
+  const token = await getAccessTokenSilently();
+  const auth = {
+    headers: {
+      Authorization: 'Bearer ' + token
+    }
+  }
+
+  const res = await officeClient.listDevices({
+    tenantId: tenantId
+  }, auth)
 
   devices.value = res.devices.sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -53,12 +72,25 @@ const toggleRemoveDevice = (deviceId: string) => {
   }
 }
 
-const removeDevice = (deviceId: string) => {
-  officeClient.removeDevice({ deviceId })
+const removeDevice = async (deviceId: string) => {
+  const tenantId = localStorage.getItem('tenantId')
+
+  if(!tenantId) {
+    return;
+  }
+
+  const token = await getAccessTokenSilently();
+  const auth = {
+    headers: {
+      Authorization: 'Bearer ' + token
+    }
+  }
+
+  officeClient.removeDevice({ deviceId }, auth)
   listDevices()
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Poll for devices every minute.
   setInterval(() => {
     listDevices()
@@ -70,6 +102,7 @@ onMounted(() => {
 
 <template>
   <div class="home">
+    <LogoutButton />
     <aside class="home__side">
       <div class="home__device-container">
         <div class="home__device-header">
@@ -78,7 +111,7 @@ onMounted(() => {
           <p>{{ devices.length }} enheter</p>
         </div>
 
-        <ul class="home__devices">
+        <ul class="home__devices" v-if="devices.length > 0">
           <li
             class="home__device"
             v-for="device in devices"
@@ -116,6 +149,10 @@ onMounted(() => {
             </button>
           </li>
         </ul>
+
+        <p class="home__no-devices" v-else>
+          Du har inga enheter
+        </p>
       </div>
 
       <button
@@ -193,6 +230,12 @@ onMounted(() => {
       color: white;
       cursor: pointer;
     }
+  }
+
+  &__no-devices {
+    padding: 1rem;
+    opacity: .6;
+    text-align: center;
   }
 
   &__devices {
