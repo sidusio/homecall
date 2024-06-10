@@ -373,7 +373,7 @@ func (s *Service) CanAccessDevice(ctx context.Context, deviceID string, adminReq
 	conditions := Device.DeviceID.EQ(String(deviceID)).
 		AND(User.Email.EQ(String(authDetails.Subject)))
 	if adminRequired {
-		conditions = conditions.AND(UserTenant.Role.EQ(String("admin")))
+		conditions = conditions.AND(UserTenant.Role.EQ(enum.TenantRole.Admin))
 	}
 
 	// Check if the user has access to the tenant
