@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import GlobalHeader from '@/components/GlobalHeader.vue';
+
 
 </script>
 
 <template>
   <div>
+    <GlobalHeader />
+
     <router-view />
   </div>
 </template>

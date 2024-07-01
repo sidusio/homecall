@@ -1,0 +1,121 @@
+@import '../base.css';
+@import './components/_modal.scss';
+@import './components/_inputs.scss';
+
+#app {
+  height: 100vh;
+  background-color: white !important;
+  color: black;
+}
+
+.link-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .5rem 1rem;
+  border-radius: 30px;
+  border: none;
+  background-color: transparent;
+  transition: all 0.3s ease-in-out;
+  font-size: 1rem;
+  text-decoration: none;
+  color: #002594;
+
+  &:hover {
+    cursor: pointer;
+    background-color: rgba(0, 37, 148, 0.05);
+  }
+
+  &--active {
+    background-color: rgba(0, 37, 148, 0.1);
+  }
+
+  &--small {
+    font-size: 0.9rem;
+  }
+
+  &--round {
+    padding: 8px 9px;
+  }
+
+  &__icon {
+    font-size: .8rem;
+  }
+
+  &--danger {
+    color: #ff4d4f;
+
+    &:hover {
+      background-color: rgba(255, 77, 79, 0.05);
+    }
+
+    &--active {
+      background-color: rgba(255, 77, 79, 0.1);
+    }
+  }
+}
+
+.btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .5rem;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 30px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 1rem;
+
+  &--small {
+    padding: 8px 15px;
+    font-size: 0.8rem;
+  }
+
+  &--filled {
+    background-color: #002594;
+    color: white;
+    transition: all 0.3s ease-in-out;
+
+    &:hover {
+      background-color: #001f6d;
+    }
+  }
+
+  &--outlined {
+    background-color: white;
+    color: #002594;
+    border: 1px solid #002594;
+    transition: all 0.3s ease-in-out;
+
+    &:hover {
+      background-color: #002594;
+      color: white;
+    }
+  }
+
+  &--danger {
+    background-color: #ff4d4f;
+    color: white;
+    transition: all 0.3s ease-in-out;
+
+    &:hover {
+      background-color: #ff3336;
+    }
+  }
+
+  &__icon {
+    font-size: 1rem;
+  }
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.1);
+  z-index: 99;
+}

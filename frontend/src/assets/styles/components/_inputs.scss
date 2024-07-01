@@ -1,0 +1,39 @@
+@mixin input-base {
+    padding: .8rem 1rem;
+    border: 1px solid #002594;
+    border-radius: 5px;
+    width: 100%;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+// General inputs.
+input {
+    @include input-base;
+}
+
+input.readonly {
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+// Select component.
+select {
+    @include input-base;
+    position: relative;
+    -moz-appearance: none; /* Firefox */
+        -webkit-appearance: none; /* Safari and Chrome */
+            appearance: none;
+}
+
+.select-container {
+    position: relative;
+
+    &__icon {
+        position: absolute;
+        top: 38%;
+        right: 1rem;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+}

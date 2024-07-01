@@ -18,9 +18,27 @@ const router = createRouter({
     {
       path: '/tenants',
       name: 'SelectTenants',
-      component: () => import('../views/office/ChooseTenantView.vue'),
+      component: () => import('../views/office/tenants/ChooseView.vue'),
       beforeEnter: authGuard,
     },
+    {
+      path: '/create-tenant',
+      name: 'CreateTenant',
+      component: () => import('../views/office/tenants/CreateView.vue'),
+      beforeEnter: authGuard,
+    },
+    {
+      path: '/tenant-settings',
+      name: 'TenantSettings',
+      component: () => import('../views/office/tenants/SettingsView.vue'),
+      beforeEnter: authGuard,
+    },
+    /*{
+      path: '/groups',
+      name: 'SelectTenants',
+      component: () => import('../views/office/HandleTenantView.vue'),
+      beforeEnter: authGuard,
+    },*/
     {
       path: '/call/:deviceId',
       name: 'Call',

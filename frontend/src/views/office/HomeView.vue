@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { officeClient } from '@/clients';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
-import LogoutButton from '@/components/LogoutButton.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 
 const { getAccessTokenSilently } = useAuth0();
@@ -23,7 +22,11 @@ interface Enrollment {
 const registerDevice = ref(false)
 const enrollment = ref<Enrollment | null>(null)
 const devices = ref<Device[]>([])
+const recentlyModifiedDeviceId = ref<string | null>(null)
 
+/**
+ * List all devices.
+ */
 const listDevices = async () => {
   const tenantId = localStorage.getItem('tenantId')
 
@@ -45,10 +48,18 @@ const listDevices = async () => {
   devices.value = res.devices.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/**
+ * Clear the enrollment.
+ */
 const clearEnrollment = () => {
   enrollment.value = null
 }
 
+/**
+ * Handle the registration of a device.
+ *
+ * @param event - The enrollment event.
+ */
 const handleRegistration = (event: Enrollment) => {
   enrollment.value = event
   registerDevice.value = false
@@ -56,15 +67,22 @@ const handleRegistration = (event: Enrollment) => {
   listDevices()
 }
 
+/**
+ * Handle the enrollment of a device.
+ *
+ * @param deviceId - The id of the device.
+ */
 const handleEnrollment = (deviceId: string) => {
   clearEnrollment()
   recentlyModifiedDeviceId.value = deviceId
   listDevices()
 }
 
-const recentlyModifiedDeviceId = ref<string | null>(null)
-
-
+/**
+ * Toggle the removal of a device.
+ *
+ * @param deviceId - The id of the device.
+ */
 const toggleRemoveDevice = (deviceId: string) => {
   const removeDiv = document.getElementById(`remove-${deviceId}`)
   if (removeDiv) {
@@ -72,6 +90,11 @@ const toggleRemoveDevice = (deviceId: string) => {
   }
 }
 
+/**
+ * Remove a device.
+ *
+ * @param deviceId - The id of the device.
+ */
 const removeDevice = async (deviceId: string) => {
   const tenantId = localStorage.getItem('tenantId')
 
@@ -102,7 +125,6 @@ onMounted(async () => {
 
 <template>
   <div class="home">
-    <LogoutButton />
     <aside class="home__side">
       <div class="home__device-container">
         <div class="home__device-header">
@@ -177,7 +199,7 @@ onMounted(async () => {
       ></EnrollDevice>
 
       <div v-else>
-        <h1>Välkommen till HomeCall</h1>
+        <h1>Välkommen till Homecall</h1>
         <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
 
         <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>
@@ -187,8 +209,10 @@ onMounted(async () => {
 </template>
 
 <style lang="scss" scoped>
+@import "@/assets/styles/variables.scss";
+
 .home {
-  height: 100vh;
+  height: $viewport-height;
   display: flex;
   gap: 1rem;
 
@@ -214,7 +238,7 @@ onMounted(async () => {
   }
 
   &__register {
-    background-color: rgb(67, 107, 177);
+    background-color: #002594;
     color: rgb(255, 255, 255);
     padding: 1rem;
     margin: 1rem;
@@ -226,7 +250,7 @@ onMounted(async () => {
     border: none;
 
     &:hover {
-      background-color: rgb(67, 107, 177, 0.9);
+      background-color: #001f6d;
       color: white;
       cursor: pointer;
     }

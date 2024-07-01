@@ -3,23 +3,19 @@
     const { logout } = useAuth0();
 
     const logoutUser = () => {
+        localStorage.removeItem('tenantId');
         logout({ logoutParams: { returnTo: window.location.origin } });
     }
 </script>
 
 <template>
     <button
-        class="logout-btn"
+        class="link-btn"
         @click="logoutUser"
     >
-        Log out
+        Logga ut
     </button>
 </template>
 
-<style lang="scss">
-.logout-btn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-}
+<style lang="scss" scoped>
 </style>

@@ -1,0 +1,24 @@
+@import "@/assets/styles/variables.scss";
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 40%;
+    transform: translate(-50%, -50%);
+    border-radius: 30px;
+    background-color: white;
+    padding: 2rem;
+    z-index: 100;
+    box-shadow: $box-shadow;
+
+    h2 {
+        margin-bottom: 1rem;
+    }
+
+    &__btns {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+}
