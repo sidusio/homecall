@@ -1,26 +1,31 @@
 import applyGlobalPolyfills from "./globals" // <-- Change the path
-import { View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Enroll from "./views/Enroll";
 import { useKeepAwake } from 'expo-keep-awake';
 import { useState, useEffect } from 'react';
-import { getApiToken, hasCredentials } from "./services/auth";
-import { EnrollmentData, enroll, getSettings } from "./services/enrollment";
+import {getApiToken, hasCredentials, setupCredentials, clearCredentials} from "./services/auth";
+import {EnrollmentData, enroll, getSettings} from "./services/enrollment";
 import Call from "./views/Call";
 
-applyGlobalPolyfills() // Hopefully make TextEncoder available
+// Hopefully make TextEncoder available
+applyGlobalPolyfills()
 
 export default function App() {
-  useKeepAwake(); // Keep the screen awake
-
+  useKeepAwake();
   let [enrolled, setEnrolled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setEnrolled(await hasCredentials());
+    })();
+  }, []);
+
+
   const [apiToken, setApiToken] = useState<string>('');
   const [instanceUrl, setInstanceUrl] = useState<string>('');
   const [deviceId, setDeviceId] = useState<string>('');
   const [settings, setSettings] = useState<any>({});
 
-  /**
-   * Renews the API token.
-   */
   const renewToken = async () => {
     const [token, url, deviceId] = await getApiToken();
     setApiToken(token);
@@ -28,25 +33,8 @@ export default function App() {
     setDeviceId(deviceId);
   }
 
-  /**
-   * Attempts to enroll the device.
-   *
-   * @param data - The enrollment data
-   */
-  const attemptEnrollment = async (data: EnrollmentData) => {
-    setEnrolled(null);
-    setEnrolled(await enroll(data));
-  }
-
-  // Check if the user is enrolled.
   useEffect(() => {
-    (async () => {
-      setEnrolled(await hasCredentials());
-    })();
-  }, []);
-
-  // If the user is enrolled, renew the token and get the settings.
-  useEffect(() => {
+    //clearCredentials();
     if (!enrolled) {
       return;
     }
@@ -60,7 +48,12 @@ export default function App() {
     return () => clearInterval(interval);
   }, [enrolled]);
 
-  // View rendering.
+
+  const attemptEnrollment = async (data: EnrollmentData) => {
+    setEnrolled(null);
+    setEnrolled(await enroll(data));
+  }
+
   // If we don't know if the user is enrolled yet, don't show anything
   if (enrolled === null) {
     return <View />;
@@ -80,3 +73,12 @@ export default function App() {
     <Call instanceUrl={instanceUrl} token={apiToken} deviceId={deviceId} settings={settings} />
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

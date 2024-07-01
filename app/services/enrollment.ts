@@ -55,6 +55,7 @@ async function enroll(data: EnrollmentData): Promise<boolean> {
 
     return true;
   } catch (e) {
+    console.log('Failed to enroll device', e);
     await clearCredentials();
     return false;
   }

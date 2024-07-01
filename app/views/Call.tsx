@@ -1,5 +1,7 @@
 import { StyleSheet } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
+import { Text } from 'react-native';
 import { useState, useEffect } from 'react';
 
 export default function Call(props: {
@@ -11,14 +13,8 @@ export default function Call(props: {
   const { token, instanceUrl } = props;
 
   const [webViewRef, setWebViewRef] = useState(null);
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-  /**
-   * Injects the token into the WebView.
-   *
-   * @returns void
-   */
-  const injectToken = (): void => {
+  const injectToken = async () => {
     if (!webViewRef) {
       return;
     }
@@ -30,12 +26,7 @@ export default function Call(props: {
     webViewRef.injectJavaScript(jsCode);
   }
 
-  /**
-   * Injects the device data into the WebView.
-   *
-   * @returns void
-   */
-  const injectData = (): void => {
+  const injectData = async () => {
     if (!webViewRef) {
       return;
     }
@@ -45,7 +36,7 @@ export default function Call(props: {
       deviceId: props.deviceId,
     };
 
-    const stringifyReactNativeData = JSON.stringify(reactNativeData); // Data has to be stringified to be injected.
+    const stringifyReactNativeData = JSON.stringify(reactNativeData);
 
     const jsCode = `
       window.deviceData = ${stringifyReactNativeData};
@@ -54,37 +45,13 @@ export default function Call(props: {
     webViewRef.injectJavaScript(jsCode);
   }
 
-  /**
-   * Injects debugging code into the WebView.
-   *
-   * @returns void
-   */
-  const injectDebugging = (): void => {
-    if (!webViewRef) {
-      return;
-    }
+  useEffect(() => {
+    injectToken();
+  }, [token, webViewRef]);
 
-    const debugging = `
-     // Debug
-     console = new Object();
-     console.log = function(log) {
-      window.ReactNativeWebView.postMessage(JSON.stringify(log))
-     };
-     console.debug = console.log;
-     console.info = console.log;
-     console.warn = console.log;
-     console.error = console.log;
-     `;
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-    webViewRef.injectJavaScript(debugging);
-  }
-
-  /**
-   * Refreshes the WebView.
-   *
-   * @returns void
-   */
-  const refresh = (): void => {
+  const refresh = () => {
     if (!webViewRef) {
       return;
     }
@@ -105,31 +72,36 @@ export default function Call(props: {
     setLastRefresh(Date.now());
   }
 
-  /**
-   * Handles messages from the WebView.
-   *
-   * @param event - The message event
-   */
-  const onMessage = (event: any) => {
+  const injectDebugging = () => {
+    if (!webViewRef) {
+      return;
+    }
+
+    const debugging = `
+     // Debug
+     console = new Object();
+     console.log = function(log) {
+      window.ReactNativeWebView.postMessage(JSON.stringify(log))
+     };
+     console.debug = console.log;
+     console.info = console.log;
+     console.warn = console.log;
+     console.error = console.log;
+     `;
+
+    webViewRef.injectJavaScript(debugging);
+  }
+
+  const onMessage = (event) => {
     const message = event.nativeEvent.data;
     console.log('WebView: ' + message);
   }
 
-  /**
-   * Initial load of the WebView.
-   *
-   * @returns void
-   */
-  const initialLoad = (): void => {
+  const initialLoad = () => {
     injectToken();
     injectData();
     injectDebugging();
   }
-
-  // All the useEffects.
-  useEffect(() => {
-    injectToken();
-  }, [token, webViewRef]);
 
   useEffect(() => {
     injectDebugging();
@@ -140,10 +112,18 @@ export default function Call(props: {
     return () => clearInterval(interval);
   }, [lastRefresh]);
 
+  // TODO: Make better fix than this.
+  const fixInstanceUrl = () => {
+    // remove '/api'
+    if (instanceUrl.endsWith('/api')) {
+      return instanceUrl.slice(0, -4);
+    }
+  }
+
   return (
     <WebView
       style={styles.container}
-      source={{ uri: `${instanceUrl}/device` }}
+      source={{ uri: `${fixInstanceUrl()}/device` }}
       ref={setWebViewRef}
       onLoad={initialLoad}
       onMessage={onMessage}
@@ -157,5 +137,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
+    marginTop: -17, // TODO: Might need better solution for whitespace.
   },
 });

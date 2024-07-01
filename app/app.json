@@ -18,8 +18,7 @@
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
-      },
-      "bundleIdentifier": "io.sidus.homecall"
+      }
     },
     "android": {
       "adaptiveIcon": {

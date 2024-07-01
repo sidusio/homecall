@@ -4,6 +4,7 @@ import base64url from "base64url";
 
 const Buffer = require("buffer").Buffer;
 
+
 interface Credentials {
   deviceId: string;
   privateKey: string;
@@ -11,12 +12,6 @@ interface Credentials {
   audience: string;
 }
 
-/**
- * Checks if the given data is a Credentials object.
- *
- * @param data - The data to check
- * @returns True if the data is a Credentials object, false otherwise
- */
 function isCredentials(data: any): data is Credentials {
   return (
     typeof data === 'object' &&
@@ -27,10 +22,17 @@ function isCredentials(data: any): data is Credentials {
   );
 }
 
+export {
+  setupCredentials,
+  getApiToken,
+  hasCredentials,
+  clearCredentials,
+}
+
+
 /**
  * Sets up the credentials for the device
- *
- * @returns PEM encoded (SPKI) RSA public key for enrollment.
+ * @returns PEM  encoded (SPKI) RSA public key for enrollment.
  */
 async function setupCredentials(deviceId: string, instanceUrl: string, audience: string): Promise<string> {
   const keypair = await RSA.generateKeys(2048);
@@ -49,7 +51,6 @@ async function setupCredentials(deviceId: string, instanceUrl: string, audience:
 
 /**
  * Gets the credentials for the device
- *
  * @returns The API token and the api url
  */
 async function getApiToken(): Promise<[string, string, string]> {
@@ -82,11 +83,6 @@ async function getApiToken(): Promise<[string, string, string]> {
   return [jwt, instanceUrl, deviceId];
 }
 
-/**
- * Checks if the device has credentials
- *
- * @returns True if the device has credentials, false otherwise
- */
 async function hasCredentials(): Promise<boolean> {
   try {
     await getCredentials();
@@ -96,31 +92,17 @@ async function hasCredentials(): Promise<boolean> {
   }
 }
 
-/**
- * Clears the credentials for the device
- *
- * @returns Promise<void>
- */
 async function clearCredentials(): Promise<void> {
   await SecureStore.deleteItemAsync(homecallSecureStoreTag);
 }
 
+
 const homecallSecureStoreTag = 'io.sidus.homecall.credentials';
 
-/**
- * Stores the credentials for the device
- *
- * @param credentials - The credentials to store
- */
 async function storeCredentials (credentials: Credentials): Promise<void> {
   await SecureStore.setItemAsync(homecallSecureStoreTag, JSON.stringify(credentials));
 }
 
-/**
- * Gets the credentials for the device
- *
- * @returns The credentials for the device
- */
 async function getCredentials(): Promise<Credentials> {
   const credentialsData = await SecureStore.getItemAsync(homecallSecureStoreTag);
 
@@ -136,11 +118,4 @@ async function getCredentials(): Promise<Credentials> {
   }
 
   return credentials;
-}
-
-export {
-  setupCredentials,
-  getApiToken,
-  hasCredentials,
-  clearCredentials,
 }

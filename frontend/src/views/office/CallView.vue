@@ -3,14 +3,23 @@
 import { officeClient } from '@/clients';
 import { onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAuth0 } from '@auth0/auth0-vue';
 
+const { getAccessTokenSilently } = useAuth0();
 const router = useRouter()
 const deviceId = useRoute().params.deviceId as string
 
 onMounted(async () => {
+  const token = await getAccessTokenSilently();
+  const auth = {
+    headers: {
+      Authorization: 'Bearer ' + token
+    }
+  }
+
   const res = await officeClient.startCall({
     deviceId: deviceId
-  })
+  }, auth)
 
   //@ts-ignore - Jitsi is not typed.
   const api = new JitsiMeetExternalAPI('8x8.vc', {
