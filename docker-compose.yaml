@@ -9,6 +9,8 @@ services:
     environment:
       HOMECALL_DB_HOST: db
       HOMECALL_DB_PASSWORD: supersecret
+      HOMECALL_DB_PORT: 5432
+      HOMECALL_AUTH_AUDIENCE: https://office-api.homecall.sidus.io
       HOMECALL_JITSI_APP_ID: ${HOMECALL_JITSI_APP_ID}
       HOMECALL_JITSI_KEY_ID: ${HOMECALL_JITSI_KEY_ID}
       HOMECALL_JITSI_KEY_FILE: jitsi_key.pem
