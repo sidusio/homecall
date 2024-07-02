@@ -4,12 +4,14 @@ import (
 	"connectrpc.com/connect"
 	"context"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"golang.org/x/sync/errgroup"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
 	"sidus.io/home-call/jitsi"
 	"sidus.io/home-call/messaging"
@@ -125,8 +127,7 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 }
 
 func setupJitsiApp(cfg Config) (*jitsi.App, error) {
-	return nil, nil // TODO
-	/*jitsiKeyData, err := os.ReadFile(cfg.JitsiKeyFile)
+	jitsiKeyData, err := os.ReadFile(cfg.JitsiKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read jitsi key file: %w", err)
 	}
@@ -134,7 +135,7 @@ func setupJitsiApp(cfg Config) (*jitsi.App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse jitsi key: %w", err)
 	}
-	return jitsi.NewApp(cfg.JitsiAppId, cfg.JitsiKeyId, jitsiKey), nil*/
+	return jitsi.NewApp(cfg.JitsiAppId, cfg.JitsiKeyId, jitsiKey), nil
 }
 
 func setupHttpServer(
