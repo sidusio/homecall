@@ -26,7 +26,7 @@ onMounted(() => {
 <template>
   <header class="global-header">
     <div class="global-header__group">
-        <p class="global-header__logo">Homecall</p>
+        <router-link to="/dashboard" class="global-header__logo">Homecall</router-link>
 
         <div class="global-header__divider"></div>
 
@@ -62,6 +62,8 @@ onMounted(() => {
         font-size: 1.2rem;
         margin: 4px 0;
         font-weight: 500;
+        color: #333;
+        text-decoration: none;
     }
 
     &__divider {
