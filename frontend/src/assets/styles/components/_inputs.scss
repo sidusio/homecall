@@ -4,6 +4,9 @@
     border-radius: 5px;
     width: 100%;
     font-size: 1rem;
+}
+
+.input-container {
     margin-bottom: 1rem;
 }
 
@@ -12,9 +15,14 @@ input {
     @include input-base;
 }
 
-input.readonly {
+input.readonly, label.readonly {
     pointer-events: none;
     opacity: 0.3;
+}
+
+label {
+    display: block;
+    margin-bottom: .3rem;
 }
 
 // Select component.
@@ -31,9 +39,19 @@ select {
 
     &__icon {
         position: absolute;
-        top: 38%;
+        top: 50%;
         right: 1rem;
         transform: translateY(-50%);
         pointer-events: none;
     }
+}
+
+.mandatory {
+    color: red;
+}
+
+p.mandatory {
+    font-size: .8rem;
+    margin-top: .3rem;
+    text-align: left;
 }

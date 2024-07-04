@@ -2,18 +2,33 @@
 import { ref } from 'vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import LogoutButton from '@/components/LogoutButton.vue';
+// @ts-ignore
+import { onClickOutside } from '@vueuse/core'
 
 const { user } = useAuth0();
-
+const dropdown = ref(null);
 const open = ref(false);
 
+/**
+ * Close the dropdown when clicking outside.
+ */
+onClickOutside(dropdown, () => {
+    open.value = false;
+});
+
+/**
+ * Toggle the dropdown.
+ */
 const toggle = () => {
     open.value = !open.value;
 };
 </script>
 
 <template>
-    <div class="user-menu">
+    <div
+        class="user-menu"
+        ref="dropdown"
+    >
         <button
             class="user-menu__user"
             @click="toggle"

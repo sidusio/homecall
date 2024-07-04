@@ -4,12 +4,22 @@ import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useRouter } from 'vue-router'
 import type { Tenant } from "./../../../gen/connect/homecall/v1alpha/tenant_service_pb";
+// @ts-ignore
+import { onClickOutside } from '@vueuse/core'
 
 const router = useRouter()
 const { getAccessTokenSilently } = useAuth0();
 const tenantsList = ref<Tenant[]>([])
 const currentTenant = ref<Tenant>({} as Tenant) // TODO: Change typing to a better solution.
 const open = ref(false);
+const dropdown = ref(null);
+
+/**
+ * Close the dropdown when clicking outside.
+ */
+onClickOutside(dropdown, () => {
+    open.value = false;
+});
 
 /**
  * Watch the route.
@@ -21,9 +31,6 @@ const open = ref(false);
 /**
  * Watch the tenantId.
  */
-watch(() => localStorage.getItem('tenantId'), async () => {
-    resetTenantList()
-})
 
 /**
  * Toggle the dropdown.
@@ -87,7 +94,10 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="select-tenant">
+    <div
+        class="select-tenant"
+        ref="dropdown"
+    >
         <button
             class="link-btn"
             @click="toggle('')"

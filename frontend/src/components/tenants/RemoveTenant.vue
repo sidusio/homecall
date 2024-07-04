@@ -8,10 +8,16 @@ const { getAccessTokenSilently } = useAuth0();
 const open = ref(false);
 const router = useRouter();
 
-const initiateRemoveTenant = () => {
-    open.value = true;
+/**
+ * Toggle the modal.
+ */
+const toggle = () => {
+    open.value = !open.value;
 };
 
+/**
+ * Remove the tenant.
+ */
 const removeTenant = async () => {
     const tenantId = localStorage.getItem('tenantId')
 
@@ -34,36 +40,33 @@ const removeTenant = async () => {
     localStorage.removeItem('tenantId');
     router.push('/tenants');
 };
-
-const cancelRemoveTenant = () => {
-    open.value = false;
-};
 </script>
 
 <template>
     <main class="remove">
         <h2 class="remove__title">Ta bort organisation</h2>
+
         <p class="remove__text">
             Om du tar bort organisationen kommer all data att raderas och det går inte att ångra.
         </p>
 
         <button
-            @click="initiateRemoveTenant"
+            @click="toggle"
             class="btn btn--danger"
         >
             Ta bort organisation
         </button>
     </main>
 
-    <div class="remove__overlay" v-if="open"></div>
+    <div class="overlay" v-if="open"></div>
 
-    <div class="remove__modal" v-if="open">
+    <div class="modal" v-if="open">
         <h2>Är du helt säker?</h2>
         <p class="remove__modal__text">
             Om du tar bort organisationen kommer all data att raderas och det går inte att ångra.
         </p>
 
-        <div class="remove__modal__btns">
+        <div class="modal__btns">
             <button
                 @click="removeTenant"
                 class="btn btn--danger"
@@ -72,7 +75,7 @@ const cancelRemoveTenant = () => {
             </button>
 
             <button
-                @click="cancelRemoveTenant"
+                @click="toggle"
                 class="btn btn--outlined"
             >
                 Avbryt
@@ -90,16 +93,6 @@ const cancelRemoveTenant = () => {
 
     &__text {
         margin-bottom: 2rem;
-    }
-
-    &__overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 100;
     }
 
     &__modal {

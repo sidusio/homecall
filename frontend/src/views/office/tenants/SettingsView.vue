@@ -1,9 +1,6 @@
 <script lang="ts" setup>
 import RemoveTenant from '@/components/tenants/RemoveTenant.vue';
 import AddMembers from '@/components/tenants/AddMembers.vue';
-// Be able to change name
-
-// Add members to tenant
 </script>
 
 <template>

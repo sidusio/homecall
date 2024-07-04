@@ -26,6 +26,10 @@ onMounted(() => {
 <template>
   <header class="global-header">
     <div class="global-header__group">
+        <p class="global-header__logo">Homecall</p>
+
+        <div class="global-header__divider"></div>
+
         <SelectTenant v-if="tenantId && isAuthenticated" />
 
         <TenantSettings v-if="tenantId && isAuthenticated" />
@@ -53,6 +57,19 @@ onMounted(() => {
     position: sticky;
     top: 0;
     width: 100%;
+
+    &__logo {
+        font-size: 1.2rem;
+        margin: 4px 0;
+        font-weight: 500;
+    }
+
+    &__divider {
+        height: 1.5rem;
+        width: 1px;
+        background-color: #ccc;
+        margin: 0 0 0 1rem;
+    }
 
     &__group {
         display: flex;

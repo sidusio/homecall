@@ -16,6 +16,14 @@
         margin-bottom: 1rem;
     }
 
+    &__text {
+        margin-bottom: 1rem;
+
+        strong {
+            font-weight: 500;
+        }
+    }
+
     &__btns {
         display: flex;
         gap: 1rem;

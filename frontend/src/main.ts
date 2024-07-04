@@ -33,6 +33,25 @@ Sentry.init({
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
+      Sentry.feedbackIntegration({
+        // Additional SDK configuration goes in here, for example:
+        colorScheme: "system",
+        showBranding: false,
+        triggerLabel: "Ge oss feedback",
+        formTitle: "Ge oss feedback",
+        nameLabel: "Namn",
+        namePlaceholder: "Skriv ditt namn här...",
+        emailLabel: "E-post",
+        emailPlaceholder: "Skriv din e-post här...",
+        messageLabel: "Meddelande",
+        messagePlaceholder: "Skriv ditt meddelande här...",
+        isRequiredLabel: "*",
+        addScreenshotButtonLabel: "Lägg till skärmbild",
+        removeScreenshotButtonLabel: "Ta bort skärmbild",
+        submitButtonLabel: "Skicka feedback",
+        cancelButtonLabel: "Avbryt",
+        successMessageText: "Tack för din feedback!",
+      }),
     ],
     // Performance Monitoring
     tracesSampleRate: 1.0, //  Capture 100% of the transactions

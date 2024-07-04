@@ -9,6 +9,7 @@ const { getAccessTokenSilently, user } = useAuth0();
 const open = ref(false);
 const invitedEmail = ref<string>('');
 const invitedRole = ref<Role>(Role.UNSPECIFIED);
+const error = ref<boolean>(false);
 
 const emit = defineEmits(['invite']);
 
@@ -16,6 +17,12 @@ const emit = defineEmits(['invite']);
  * Add a member to the tenant.
  */
 const addMember = async () => {
+    if(!invitedEmail.value && !invitedRole.value) {
+        error.value = true;
+
+        return;
+    }
+
     const tenantId = localStorage.getItem('tenantId')
 
     if(!tenantId) {
@@ -46,6 +53,7 @@ const addMember = async () => {
  */
 const toggle = () => {
     open.value = !open.value;
+    error.value = false;
 }
 </script>
 
@@ -57,22 +65,45 @@ const toggle = () => {
         Bjud in medlem
     </button>
 
+    <div class="overlay" v-if="open"></div>
+
     <div class="modal" v-if="open">
         <h2>Bjud in medlem</h2>
 
-        <input
-            v-model="invitedEmail"
-            type="email"
-            placeholder="E-post"
-        />
+        <div class="input-container">
+            <label for="email">
+                E-post <span class="mandatory">*</span>
+            </label>
 
-        <Select>
-            <select v-model="invitedRole">
-                <option :value="Role.UNSPECIFIED">Okänd</option>
-                <option :value="Role.ADMIN">Admin</option>
-                <option :value="Role.MEMBER">Medlem</option>
-            </select>
-        </Select>
+            <input
+                v-model="invitedEmail"
+                type="email"
+                id="email"
+                placeholder="E-post"
+            />
+
+            <p class="mandatory" v-if="error && !invitedEmail">
+                Du måste ange en e-postadress.
+            </p>
+        </div>
+
+        <div class="input-container">
+            <label for="role">
+                Roll <span class="mandatory">*</span>
+            </label>
+
+            <Select>
+                <select v-model="invitedRole" id="role">
+                    <option :value="Role.UNSPECIFIED" disabled>Välj roll</option>
+                    <option :value="Role.ADMIN">Admin</option>
+                    <option :value="Role.MEMBER">Medlem</option>
+                </select>
+            </Select>
+
+            <p class="mandatory" v-if="error && !invitedEmail">
+                Du måste välja en roll.
+            </p>
+        </div>
 
         <div class="modal__btns">
             <button

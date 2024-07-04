@@ -113,6 +113,10 @@ const removeDevice = async (deviceId: string) => {
   listDevices()
 }
 
+watch(() => localStorage.getItem('tenantId'), () => {
+  console.log('test')
+})
+
 onMounted(async () => {
   // Poll for devices every minute.
   setInterval(() => {

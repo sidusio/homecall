@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { officeClient } from '@/clients'
 import { useAuth0 } from '@auth0/auth0-vue';
 
@@ -13,6 +13,7 @@ interface Enrollment {
 const deviceName = ref('')
 const autoAnswer = ref(false)
 const autoAnswerDelay = ref(0)
+const error = ref(false)
 
 const emit = defineEmits({
     registered(enrollment: Enrollment) {
@@ -26,6 +27,11 @@ const enrollDevice = async (e: Event) => {
     const tenantId = localStorage.getItem('tenantId')
 
     if(!tenantId) {
+        return;
+    }
+
+    if(!deviceName.value) {
+        error.value = true;
         return;
     }
 
@@ -61,7 +67,14 @@ const enrollDevice = async (e: Event) => {
         </h1>
 
         <form>
-            <input type="text" placeholder="Enhetens namn" v-model="deviceName" />
+            <div class="register-device__input-container">
+                <label for="name">
+                    Enhetens namn <span class="mandatory">*</span>
+                </label>
+                <input type="text" placeholder="Fyll i enhetens namn..." v-model="deviceName" />
+                <p v-if="error" class="mandatory">Enheten måste ha ett namn.</p>
+            </div>
+
             <span class="form-row">
                 <label class="register-device__auto-answer" for="autoanswer">
                     <input id="autoanswer" type="checkbox" v-model="autoAnswer" />
@@ -74,21 +87,31 @@ const enrollDevice = async (e: Event) => {
                 </span>
             </span>
 
-            <button class="btn" @click="enrollDevice">Registrera enhet</button>
+            <button class="btn btn--filled" @click="enrollDevice">Registrera enhet</button>
         </form>
     </div>
 </template>
 
 <style lang="scss" scoped>
+@import '@/assets/styles/variables.scss';
+
 .register-device {
+    height: $viewport-height;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
 
     &__title {
         margin-bottom: 1.5rem;
+    }
+
+    &__input-container {
+        width: 100%;
+
+        label {
+            text-align: left;
+        }
     }
 
     form {
@@ -140,21 +163,7 @@ const enrollDevice = async (e: Event) => {
 }
 
 .btn {
-    background-color: rgb(67, 107, 177);
-    color: rgb(255, 255, 255);
     padding: 1rem 2rem;
     margin-top: 2rem;
-    text-align: center;
-    border-radius: 30px;
-    text-decoration: none;
-    transition: all 0.3s;
-    font-size: 1rem;
-    border: none;
-
-    &:hover {
-      background-color: rgb(67, 107, 177, 0.9);
-      color: white;
-        cursor: pointer;
-    }
 }
 </style>

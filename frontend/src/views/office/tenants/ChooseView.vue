@@ -5,7 +5,6 @@ import ListTenants from '@/components/tenants/ListTenants.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useRouter } from 'vue-router';
 
-
 const router = useRouter()
 const { getAccessTokenSilently } = useAuth0();
 const tenantsList = ref()

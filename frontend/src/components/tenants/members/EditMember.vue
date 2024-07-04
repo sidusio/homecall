@@ -63,20 +63,30 @@ const toggle = () => {
         </h2>
 
         <div class="edit-member__column">
-            <input
-                class="readonly"
-                type="text"
-                :value="email"
-                readonly
-            />
+            <div class="input-container">
+                <label class="readonly" for="email">E-post</label>
+                <input
+                    class="readonly"
+                    type="text"
+                    id="email"
+                    :value="email"
+                    readonly
+                />
+            </div>
 
-            <Select>
-                <select v-model="role">
-                    <option :value="Role.UNSPECIFIED">Okänd</option>
-                    <option :value="Role.ADMIN">Admin</option>
-                    <option :value="Role.MEMBER">Medlem</option>
-                </select>
-            </Select>
+            <div class="input-container">
+                <label for="role">
+                    Roll
+                </label>
+
+                <Select>
+                    <select v-model="role" id="role">
+                        <option :value="Role.UNSPECIFIED">Okänd</option>
+                        <option :value="Role.ADMIN">Admin</option>
+                        <option :value="Role.MEMBER">Medlem</option>
+                    </select>
+                </Select>
+            </div>
         </div>
 
         <div class="edit-member__btns">
