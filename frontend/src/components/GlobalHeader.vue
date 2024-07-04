@@ -28,7 +28,7 @@ onMounted(() => {
     <div class="global-header__group">
         <router-link to="/dashboard" class="global-header__logo">Homecall</router-link>
 
-        <div class="global-header__divider"></div>
+        <div class="global-header__divider" v-if="tenantId && isAuthenticated"></div>
 
         <SelectTenant v-if="tenantId && isAuthenticated" />
 
