@@ -7,12 +7,18 @@ import { useAuth0 } from '@auth0/auth0-vue';
 const { getAccessTokenSilently } = useAuth0();
 const router = useRouter()
 const tenantName = ref<string>('')
+const error = ref(false)
 
 /**
  * Create a new tenant.
  */
 const createTenant = async (e: Event) => {
     e.preventDefault()
+
+    if(!tenantName.value) {
+        error.value = true;
+        return;
+    }
 
     const token = await getAccessTokenSilently();
     const auth = {
@@ -40,8 +46,17 @@ const createTenant = async (e: Event) => {
         <h1>Skapa ny organisation</h1>
 
         <form class="create__form">
-            <input type="text" v-model="tenantName" placeholder="Skriv in namn..." />
-            <button type="submit" @click="createTenant"> + </button>
+            <div class="">
+                <label for="tenantName">
+                    Organisationsnamn <span class="mandatory">*</span>
+                </label>
+                <input type="text" v-model="tenantName" placeholder="Skriv in namn..." />
+                <p class="mandatory" v-if="error">
+                    Du måste fylla i ett namn.
+                </p>
+            </div>
+
+            <button class="btn btn--filled" type="submit" @click="createTenant"> Skapa </button>
         </form>
     </main>
 </template>
@@ -59,25 +74,17 @@ const createTenant = async (e: Event) => {
 
     &__form {
         display: flex;
+        flex-direction: column;
         width: 50%;
         gap: 1rem;
         margin-top: 2rem;
+    }
 
-        button {
-            height: 50px;
-            width: 50px;
-            font-size: 2.5rem;
-            border-radius: 100%;
-            border: none;
-            background-color: #002594;
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.3s ease-in-out;
-
-            &:hover {
-                background-color: #001f4d;
-            }
-        }
+    .btn {
+        align-self: flex-end;
+        width: fit-content;
+        padding-left: 3rem;
+        padding-right: 3rem;
     }
 }
 </style>
