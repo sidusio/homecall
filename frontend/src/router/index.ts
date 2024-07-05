@@ -1,22 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authGuard, useAuth0 } from "@auth0/auth0-vue";
 
-/**
- * Guard for login page.
- *
- * @returns {Object} The route to redirect to.
- */
-const guardLogin = () => {
-  const { isAuthenticated } = useAuth0();
-
-  // TODO: This blocks login currently, that is not the intention.
-  if (isAuthenticated) {
-    return { name: 'Home' };
-  } else {
-    return { name: 'Login' };
-  }
-}
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -24,7 +8,6 @@ const router = createRouter({
       path: '/',
       name: 'Login',
       component: () => import('../views/office/LoginView.vue'),
-      beforeEnter: guardLogin,
     },
     {
       path: '/dashboard',

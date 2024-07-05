@@ -6,11 +6,22 @@ import { useState, useEffect } from 'react';
 import {getApiToken, hasCredentials, setupCredentials, clearCredentials} from "./services/auth";
 import {EnrollmentData, enroll, getSettings} from "./services/enrollment";
 import Call from "./views/Call";
+import * as Sentry from '@sentry/react-native';
+import {StatusBar} from 'react-native';
+
+Sentry.init({
+  dsn: 'https://9639d3406a54364151d90077a1a2020b@o4507538136170496.ingest.de.sentry.io/4507538144755792',
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // enableSpotlight: __DEV__,
+});
 
 // Hopefully make TextEncoder available
 applyGlobalPolyfills()
 
-export default function App() {
+function App() {
+  <StatusBar hidden />
+
   useKeepAwake();
   let [enrolled, setEnrolled] = useState<boolean | null>(null);
 
@@ -19,7 +30,6 @@ export default function App() {
       setEnrolled(await hasCredentials());
     })();
   }, []);
-
 
   const [apiToken, setApiToken] = useState<string>('');
   const [instanceUrl, setInstanceUrl] = useState<string>('');
@@ -74,11 +84,4 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default Sentry.wrap(App);

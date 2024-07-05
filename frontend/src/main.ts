@@ -35,6 +35,7 @@ Sentry.init({
       Sentry.replayIntegration(),
       Sentry.feedbackIntegration({
         // Additional SDK configuration goes in here, for example:
+        //autoInject: false,
         colorScheme: "system",
         showBranding: false,
         triggerLabel: "Ge oss feedback",

@@ -121,6 +121,8 @@ const waitForCall = async (): Promise<Call> => {
 
 // OnMounted, start to wait for call.
 onMounted(async () => {
+  document.querySelector('body')?.classList.add('remove-feedback')
+
   while(true) {
     try {
       incomingCall.value = await waitForCall()
@@ -132,7 +134,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="home">
+  <main class="home device">
     <article class="home__awaiting-call" v-if="!incomingCall && !activeCall">
       <h2>Inget samtal just nu</h2>
     </article>
@@ -152,11 +154,20 @@ onMounted(async () => {
   </main>
 </template>
 
+<style lang="scss">
+// Hide the feedback button.
+.remove-feedback {
+  #sentry-feedback {
+    display: none;
+  }
+}
+</style>
+
 <style lang="scss" scoped>
 .home {
   height: 100vh;
   position: relative;
-  background-color: rgb(67, 107, 177);
+  background-color: #002594;
 
   h1 {
     font-size: 4rem;

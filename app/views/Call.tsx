@@ -137,6 +137,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    marginTop: -17, // TODO: Might need better solution for whitespace.
   },
 });
