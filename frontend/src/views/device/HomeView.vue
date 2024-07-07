@@ -153,6 +153,8 @@ onMounted(async () => {
     </article>
 
     <div id="meeting"></div>
+
+    <button v-if="activeCall" class="home__hangup" @click="activeCall = null">Avsluta samtal</button>
   </main>
 </template>
 
@@ -173,6 +175,27 @@ onMounted(async () => {
 
   h1 {
     font-size: 4rem;
+  }
+
+  &__hangup {
+    position: absolute;
+    width: fit-content;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1rem 1.5rem;
+    font-size: 1.2rem;
+    background-color: rgb(166, 0, 0);
+    color: white;
+    border-radius: 30px;
+    border: none;
+    transition: all 0.3s;
+
+    &:hover {
+      background-color: rgb(184, 0, 0);
+      box-shadow: 0 0 7px rgb(184, 0, 0);
+      cursor: pointer;
+    }
   }
 
   &__awaiting-call {
