@@ -48,7 +48,7 @@ onMounted(async () => {
 
   // If meeting is closed
   api.addEventListener('readyToClose', () => {
-    router.push('/')
+    router.push('/dashboard')
   })
 });
 </script>

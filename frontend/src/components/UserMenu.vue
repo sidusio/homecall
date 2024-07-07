@@ -35,7 +35,7 @@ const toggle = () => {
         >
             <img
                 class="user-menu__user__avatar"
-                :src="user.picture"
+                :src="user?.picture"
                 alt="User avatar"
             />
         </button>

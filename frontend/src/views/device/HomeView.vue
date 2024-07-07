@@ -15,6 +15,7 @@ interface Call {
 }
 
 const settings = computed((): Settings => {
+  // @ts-ignore - DeviceId is set in the HTML.
   return (window.deviceData.settings || '{}')
 })
 
@@ -96,6 +97,7 @@ watch(activeCall, async () => {
 */
 const waitForCall = async (): Promise<Call> => {
   const token = localStorage.getItem('token')
+  // @ts-ignore - DeviceId is set in injected JS.
   const deviceId = window.deviceData.deviceId
 
   const abort = new AbortController()
