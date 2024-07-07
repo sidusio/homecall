@@ -12,6 +12,10 @@ type Config struct {
 	JitsiAppId   string `envconfig:"JITSI_APP_ID" required:"false"`
 	JitsiKeyId   string `envconfig:"JITSI_KEY_ID" required:"false"`
 	JitsiKeyFile string `envconfig:"JITSI_KEY_FILE" required:"false"`
+	// Alternatively, you can set the raw key directly
+	// Takes precedence over JitsiKeyFile
+	JitsiKeyRaw string `envconfig:"JITSI_KEY_RAW" required:"false"`
+	JitsiDomain string `envconfig:"JITSI_DOMAIN" default:"8x8.vc"`
 
 	AuthDisabled bool   `envconfig:"AUTH_DISABLED" default:"false"`
 	AuthIssuer   string `envconfig:"AUTH_ISSUER" default:"https://homecall.eu.auth0.com/"`

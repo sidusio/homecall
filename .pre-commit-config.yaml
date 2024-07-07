@@ -24,6 +24,8 @@ repos:
       - id: check-yaml
       - id: destroyed-symlinks
       - id: detect-private-key
+        # Exclude util.go from this check as it holds a dummy pem key
+        exclude: ^backend/test/api/util.go$
       - id: end-of-file-fixer
       - id: forbid-submodules
       - id: mixed-line-ending
@@ -41,6 +43,7 @@ repos:
           - ci
           - chore
           - refactor
+          - test
   - repo: https://github.com/golangci/golangci-lint
     rev: "ea3dbf1"
     hooks:

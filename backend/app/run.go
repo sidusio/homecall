@@ -127,9 +127,13 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 }
 
 func setupJitsiApp(cfg Config) (*jitsi.App, error) {
-	jitsiKeyData, err := os.ReadFile(cfg.JitsiKeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read jitsi key file: %w", err)
+	jitsiKeyData := []byte(cfg.JitsiKeyRaw)
+	if len(jitsiKeyData) == 0 {
+		var err error
+		jitsiKeyData, err = os.ReadFile(cfg.JitsiKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read jitsi key file: %w", err)
+		}
 	}
 	jitsiKey, err := jwt.ParseRSAPrivateKeyFromPEM(jitsiKeyData)
 	if err != nil {
