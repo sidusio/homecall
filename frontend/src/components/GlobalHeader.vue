@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import SelectTenant from '@/components/tenants/SelectTenant.vue';
 import UserMenu from '@/components/UserMenu.vue';
@@ -13,18 +13,39 @@ const router = useRouter();
 
 // A value that listens to tenantId in localStorage
 const tenantId = ref(false);
+const isCall = ref(false);
+
+// watch route changes
+watch(router.currentRoute, () => {
+    const tenantIdValue = localStorage.getItem('tenantId');
+    tenantId.value = tenantIdValue ? true : false;
+
+    // Check if router has call
+    if (router.currentRoute.value.path.includes('call')) {
+        isCall.value = true;
+    } else {
+        isCall.value = false;
+    }
+});
 
 // On route change, check if tenantId is in localStorage
 onMounted(() => {
     router.afterEach(() => {
         const tenantIdValue = localStorage.getItem('tenantId');
         tenantId.value = tenantIdValue ? true : false;
+
+        // Check if router has call
+        if (router.currentRoute.value.path.includes('call')) {
+            isCall.value = true;
+        } else {
+            isCall.value = false;
+        }
     });
 });
 </script>
 
 <template>
-  <header class="global-header">
+  <header class="global-header" :class="{'global-header__is-call' : isCall}">
     <div class="global-header__group">
         <router-link to="/dashboard" class="global-header__logo">Homecall</router-link>
 
@@ -57,6 +78,10 @@ onMounted(() => {
     position: sticky;
     top: 0;
     width: 100%;
+
+    &__is-call {
+        display: none;
+    }
 
     &__logo {
         font-size: 1.2rem;

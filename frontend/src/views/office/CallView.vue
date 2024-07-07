@@ -10,6 +10,8 @@ const router = useRouter()
 const deviceId = useRoute().params.deviceId as string
 
 onMounted(async () => {
+  document.querySelector('body')?.classList.add('remove-feedback')
+
   const token = await getAccessTokenSilently();
   const auth = {
     headers: {
@@ -26,7 +28,7 @@ onMounted(async () => {
     roomName: res.jitsiRoomId,
     jwt: res.jitsiJwt,
     parentNode: document.querySelector('#meeting'),
-    height: '100vh',
+    height: '100%',
     configOverwrite: {
       prejoinConfig: {
         enabled: false
@@ -54,14 +56,24 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
+  <div class="meeting-container">
     <div id="meeting"></div>
   </div>
 </template>
 
-<style scoped>
+<style lang="scss">
+// Hide the feedback button.
+.remove-feedback {
+  #sentry-feedback {
+    display: none;
+  }
+}
+</style>
+
+<style lang="scss" scoped>
 #meeting {
+  height: 100vh;
   width: 100%;
-  height: 100%;
+  overflow: hidden;
 }
 </style>
