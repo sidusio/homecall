@@ -1,20 +1,23 @@
 <script lang="ts" setup>
 import RemoveTenant from '@/components/tenants/RemoveTenant.vue';
 import AddMembers from '@/components/tenants/AddMembers.vue';
+import Office from '@/templates/Office.vue';
 </script>
 
 <template>
-    <main class="settings fill-height">
-        <h1 class="settings__title">
-            Inställningar
-        </h1>
+    <Office>
+        <main class="settings fill-height">
+            <h1 class="settings__title">
+                Inställningar
+            </h1>
 
-        <AddMembers />
+            <AddMembers />
 
-        <hr class="settings__divider" />
+            <hr class="settings__divider" />
 
-        <RemoveTenant />
-    </main>
+            <RemoveTenant />
+        </main>
+    </Office>
 </template>
 
 <style lang="scss">

@@ -1,63 +1,28 @@
 <script lang="ts" setup>
-import { ref, onMounted, watch } from 'vue';
 import { useAuth0 } from '@auth0/auth0-vue';
+import { useTenantIdStore } from '@/stores/tenantId';
 import SelectTenant from '@/components/tenants/SelectTenant.vue';
 import UserMenu from '@/components/UserMenu.vue';
 import TenantSettings from '@/components/tenants/TenantSettings.vue';
-import { useRouter } from 'vue-router';
 
-// Check if logged in
-const { isAuthenticated } = useAuth0();
-
-const router = useRouter();
-
-// A value that listens to tenantId in localStorage
-const tenantId = ref(false);
-const isCall = ref(false);
-
-// watch route changes
-watch(router.currentRoute, () => {
-    const tenantIdValue = localStorage.getItem('tenantId');
-    tenantId.value = tenantIdValue ? true : false;
-
-    // Check if router has call
-    if (router.currentRoute.value.path.includes('call')) {
-        isCall.value = true;
-    } else {
-        isCall.value = false;
-    }
-});
-
-// On route change, check if tenantId is in localStorage
-onMounted(() => {
-    router.afterEach(() => {
-        const tenantIdValue = localStorage.getItem('tenantId');
-        tenantId.value = tenantIdValue ? true : false;
-
-        // Check if router has call
-        if (router.currentRoute.value.path.includes('call')) {
-            isCall.value = true;
-        } else {
-            isCall.value = false;
-        }
-    });
-});
+const { isAuthenticated } = useAuth0(); // Check if logged in.
+const tenantIdStore = useTenantIdStore(); // Get the tenantId.
 </script>
 
 <template>
-  <header class="global-header" :class="{'global-header__is-call' : isCall}">
+  <header class="global-header">
     <div class="global-header__group">
         <router-link to="/dashboard" class="global-header__logo">Homecall</router-link>
 
-        <div class="global-header__divider" v-if="tenantId && isAuthenticated"></div>
+        <div class="global-header__divider" v-if="tenantIdStore.tenantId && isAuthenticated"></div>
 
-        <SelectTenant v-if="tenantId && isAuthenticated" />
+        <SelectTenant v-if="tenantIdStore.tenantId && isAuthenticated" />
 
-        <TenantSettings v-if="tenantId && isAuthenticated" />
+        <TenantSettings v-if="tenantIdStore.tenantId && isAuthenticated" />
     </div>
 
     <div class="global-header__group">
-        <router-link class="link-btn link-btn--small" to="/dashboard" v-if="tenantId && isAuthenticated">
+        <router-link class="link-btn link-btn--small" to="/dashboard" v-if="tenantIdStore.tenantId && isAuthenticated">
             Enheter
         </router-link>
 
@@ -78,10 +43,6 @@ onMounted(() => {
     position: sticky;
     top: 0;
     width: 100%;
-
-    &__is-call {
-        display: none;
-    }
 
     &__logo {
         font-size: 1.2rem;

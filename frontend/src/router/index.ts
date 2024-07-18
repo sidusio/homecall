@@ -33,12 +33,6 @@ const router = createRouter({
       component: () => import('../views/office/tenants/SettingsView.vue'),
       beforeEnter: authGuard,
     },
-    /*{
-      path: '/groups',
-      name: 'SelectTenants',
-      component: () => import('../views/office/HandleTenantView.vue'),
-      beforeEnter: authGuard,
-    },*/
     {
       path: '/call/:deviceId',
       name: 'Call',

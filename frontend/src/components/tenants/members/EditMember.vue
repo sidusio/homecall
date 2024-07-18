@@ -4,11 +4,13 @@ import { Role } from "./../../../../gen/connect/homecall/v1alpha/tenant_service_
 import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
 import Select from '@/templates/Select.vue';
+import { useTenantIdStore } from '@/stores/tenantId';
 
 const emit = defineEmits(['edit']);
 const props = defineProps(['email', 'role']);
 
 const { getAccessTokenSilently } = useAuth0();
+const tenantIdStore = useTenantIdStore();
 const open = ref(false);
 const role = ref<Role>(props.role);
 
@@ -16,12 +18,6 @@ const role = ref<Role>(props.role);
  * Edit a member.
  */
 const editMember = async () => {
-    const tenantId = localStorage.getItem('tenantId')
-
-    if(!tenantId) {
-        return;
-    }
-
     const token = await getAccessTokenSilently();
     const auth = {
         headers: {
@@ -30,7 +26,7 @@ const editMember = async () => {
     }
 
     await tenantClient.updateTenantMember({
-        tenantId: tenantId,
+        tenantId: tenantIdStore.tenantId,
         email: props.email,
         role: role.value
     }, auth)

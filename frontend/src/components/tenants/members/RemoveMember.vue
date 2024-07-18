@@ -2,8 +2,10 @@
 import { ref } from 'vue';
 import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
+import { useTenantIdStore } from '@/stores/tenantId';
 
 const { getAccessTokenSilently } = useAuth0();
+const tenantIdStore = useTenantIdStore();
 
 defineProps(['email']);
 
@@ -21,12 +23,6 @@ const open = ref(false);
  * Remove a member from the tenant.
  */
 const removeMember = async (email: string) => {
-    const tenantId = localStorage.getItem('tenantId')
-
-    if(!tenantId) {
-        return;
-    }
-
     const token = await getAccessTokenSilently();
     const auth = {
         headers: {
@@ -35,7 +31,7 @@ const removeMember = async (email: string) => {
     }
 
     await tenantClient.removeTenantMember({
-        tenantId: tenantId,
+        tenantId: tenantIdStore.tenantId,
         email: email
     }, auth)
 

@@ -4,6 +4,7 @@ import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useRouter } from 'vue-router'
 import type { Tenant } from "./../../../gen/connect/homecall/v1alpha/tenant_service_pb";
+import { useTenantIdStore } from '@/stores/tenantId';
 // @ts-ignore
 import { onClickOutside } from '@vueuse/core'
 
@@ -13,6 +14,7 @@ const tenantsList = ref<Tenant[]>([])
 const currentTenant = ref<Tenant>({} as Tenant) // TODO: Change typing to a better solution.
 const open = ref(false);
 const dropdown = ref(null);
+const { setTenantId } = useTenantIdStore();
 
 /**
  * Close the dropdown when clicking outside.
@@ -24,7 +26,7 @@ onClickOutside(dropdown, () => {
 /**
  * Watch the route.
  */
- watch(() => router.currentRoute.value, async () => {
+watch(() => router.currentRoute.value, async () => {
     resetTenantList()
 })
 
@@ -65,8 +67,8 @@ const resetTenantList = async () => {
  *
  * @param tenantId - The id of the tenant.
  */
-const setTenant = (tenantId: string) => {
-    localStorage.setItem('tenantId', tenantId)
+const setTenant = async (tenantId: string) => {
+    setTenantId(tenantId)
     currentTenant.value = tenantsList.value.find(tenant => tenant.id === tenantId) as Tenant // TODO: Change typing to a better solution.
     open.value = false;
 }

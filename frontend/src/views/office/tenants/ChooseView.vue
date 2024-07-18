@@ -1,12 +1,15 @@
 <script lang="ts" setup>
+import Office from '@/templates/Office.vue';
 import { onMounted, ref } from 'vue';
 import { tenantClient } from '@/clients';
 import ListTenants from '@/components/tenants/ListTenants.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useRouter } from 'vue-router';
+import { useTenantIdStore } from '@/stores/tenantId';
 
 const router = useRouter()
 const { getAccessTokenSilently } = useAuth0();
+const { setTenantId } = useTenantIdStore();
 const tenantsList = ref()
 
 onMounted(async () => {
@@ -20,7 +23,7 @@ onMounted(async () => {
   const { tenants } = await tenantClient.listTenants({}, auth)
 
   if(tenants.length === 1) {
-    localStorage.setItem('tenantId', tenants[0].id)
+    setTenantId(tenants[0].id)
     router.push('/dashboard')
   }
 
@@ -29,21 +32,23 @@ onMounted(async () => {
 </script>
 
 <template>
-    <main class="choose-tenant">
-      <h1>Välj organisation</h1>
+    <Office>
+      <main class="choose-tenant">
+        <h1>Välj organisation</h1>
 
-      <div class="choose-tenant__content">
-        <ListTenants v-if="tenantsList && tenantsList.length > 0" :tenants="tenantsList" />
+        <div class="choose-tenant__content">
+          <ListTenants v-if="tenantsList && tenantsList.length > 0" :tenants="tenantsList" />
 
-        <div class="choose-tenant__empty-container" v-else>
-          <p class="choose-tenant__empty">
-            Inga organisationer hittades.
-          </p>
+          <div class="choose-tenant__empty-container" v-else>
+            <p class="choose-tenant__empty">
+              Inga organisationer hittades.
+            </p>
 
-          <button class="btn btn--filled" @click="$router.push('/create-tenant')">Skapa ny organisation</button>
+            <button class="btn btn--filled" @click="$router.push('/create-tenant')">Skapa ny organisation</button>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </Office>
 </template>
 
 <style lang="scss">

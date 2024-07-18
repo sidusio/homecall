@@ -3,9 +3,11 @@ import { ref, defineEmits } from 'vue';
 import { Role } from "./../../../../gen/connect/homecall/v1alpha/tenant_service_pb";
 import { useAuth0 } from '@auth0/auth0-vue';
 import { tenantClient } from '@/clients';
+import { useTenantIdStore } from '@/stores/tenantId';
 import Select from '@/templates/Select.vue';
 
 const { getAccessTokenSilently, user } = useAuth0();
+const tenantIdStore = useTenantIdStore();
 const open = ref(false);
 const invitedEmail = ref<string>('');
 const invitedRole = ref<Role>(Role.UNSPECIFIED);
@@ -23,12 +25,6 @@ const addMember = async () => {
         return;
     }
 
-    const tenantId = localStorage.getItem('tenantId')
-
-    if(!tenantId) {
-        return;
-    }
-
     const token = await getAccessTokenSilently();
     const auth = {
         method: 'GET',
@@ -39,7 +35,7 @@ const addMember = async () => {
     }
 
     await tenantClient.createTenantMember({
-        tenantId: tenantId,
+        tenantId: tenantIdStore.tenantId,
         email: invitedEmail.value,
         role: invitedRole.value
     }, auth)

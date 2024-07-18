@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import Office from '@/templates/Office.vue';
 import { officeClient } from '@/clients';
 import { onMounted, ref, watch } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
+import { useTenantIdStore } from '@/stores/tenantId';
 
 const { getAccessTokenSilently } = useAuth0();
 
@@ -23,17 +25,19 @@ const registerDevice = ref(false)
 const enrollment = ref<Enrollment | null>(null)
 const devices = ref<Device[]>([])
 const recentlyModifiedDeviceId = ref<string | null>(null)
+const tenantIdStore = useTenantIdStore()
+
+/**
+ * Subscribe to tenantId changes.
+ */
+useTenantIdStore().$subscribe(() => {
+  listDevices()
+})
 
 /**
  * List all devices.
  */
 const listDevices = async () => {
-  const tenantId = localStorage.getItem('tenantId')
-
-  if(!tenantId) {
-    return;
-  }
-
   const token = await getAccessTokenSilently();
   const auth = {
     headers: {
@@ -42,7 +46,7 @@ const listDevices = async () => {
   }
 
   const res = await officeClient.listDevices({
-    tenantId: tenantId
+    tenantId: tenantIdStore.tenantId
   }, auth)
 
   devices.value = res.devices.sort((a, b) => a.name.localeCompare(b.name))
@@ -96,12 +100,6 @@ const toggleRemoveDevice = (deviceId: string) => {
  * @param deviceId - The id of the device.
  */
 const removeDevice = async (deviceId: string) => {
-  const tenantId = localStorage.getItem('tenantId')
-
-  if(!tenantId) {
-    return;
-  }
-
   const token = await getAccessTokenSilently();
   const auth = {
     headers: {
@@ -113,103 +111,96 @@ const removeDevice = async (deviceId: string) => {
   listDevices()
 }
 
-watch(() => localStorage.getItem('tenantId'), () => {
-  console.log('test')
-})
-
 onMounted(async () => {
-  // Poll for devices every minute.
-  setInterval(() => {
-    listDevices()
-  }, 10000)
-
   listDevices()
 })
 </script>
 
 <template>
-  <div class="home">
-    <aside class="home__side">
-      <div class="home__device-container">
-        <div class="home__device-header">
-          <h1>Enheter</h1>
+  <Office>
+    <div class="home">
+      <aside class="home__side">
+        <div class="home__device-container">
+          <div class="home__device-header">
+            <h1>Enheter</h1>
 
-          <p>{{ devices.length }} enheter</p>
+            <p>{{ devices.length }} enheter</p>
+          </div>
+
+          <ul class="home__devices" v-if="devices.length > 0">
+            <li
+              class="home__device"
+              v-for="device in devices"
+              :key="device.id"
+              :class="recentlyModifiedDeviceId === device.id ? 'home__device--recently-modified' : ''"
+            >
+              <div class="home__device-info" @click="toggleRemoveDevice(device.id)">
+                <span class="home__device--small">
+                  {{ device.id ? device.id : 'Ingen ID'}}
+                </span>
+                <div class="home__device--row">
+                  {{ device.name }}
+                </div>
+
+                <div class="home__device-remove" :id="'remove-' + device.id">
+                  <button @click="removeDevice(device.id)">Ta bort</button>
+                </div>
+              </div>
+
+              <router-link
+                v-if="!device.enrollmentKey"
+                class="home__device-btn home__device-call"
+                :class="device.online ? 'home__device-call--online' : 'home__device-call--offline'"
+                :to="`/call/${device.id}`"
+              >
+                <img src="@/assets/icons/phone.svg">
+              </router-link>
+
+              <button
+                v-else
+                class="home__device-btn home__device-qrcode"
+                @click="handleRegistration({ enrollmentKey: device.enrollmentKey, deviceId: device.id })"
+              >
+                <img src="@/assets/icons/qrcode-solid.svg">
+              </button>
+            </li>
+          </ul>
+
+          <p class="home__no-devices" v-else>
+            Du har inga enheter
+          </p>
         </div>
 
-        <ul class="home__devices" v-if="devices.length > 0">
-          <li
-            class="home__device"
-            v-for="device in devices"
-            :key="device.id"
-            :class="recentlyModifiedDeviceId === device.id ? 'home__device--recently-modified' : ''"
-          >
-            <div class="home__device-info" @click="toggleRemoveDevice(device.id)">
-              <span class="home__device--small">
-                {{ device.id ? device.id : 'Ingen ID'}}
-              </span>
-              <div class="home__device--row">
-                {{ device.name }}
-              </div>
+        <button
+          class="home__register"
+          @click="registerDevice = true"
+        >
+          Registrera enhet
+        </button>
+      </aside>
 
-              <div class="home__device-remove" :id="'remove-' + device.id">
-                <button @click="removeDevice(device.id)">Ta bort</button>
-              </div>
-            </div>
+      <main class="home__dashboard">
+        <RegisterDevice
+          v-if="registerDevice"
+          @registered="handleRegistration"
+        ></RegisterDevice>
 
-            <router-link
-              v-if="!device.enrollmentKey"
-              class="home__device-btn home__device-call"
-              :class="device.online ? 'home__device-call--online' : 'home__device-call--offline'"
-              :to="`/call/${device.id}`"
-            >
-              <img src="@/assets/icons/phone.svg">
-            </router-link>
+        <EnrollDevice
+          v-else-if="enrollment"
+          :enrollment="enrollment"
+          @close="clearEnrollment"
+          @enrolled="handleEnrollment"
+        ></EnrollDevice>
 
-            <button
-              v-else
-              class="home__device-btn home__device-qrcode"
-              @click="handleRegistration({ enrollmentKey: device.enrollmentKey, deviceId: device.id })"
-            >
-              <img src="@/assets/icons/qrcode-solid.svg">
-            </button>
-          </li>
-        </ul>
+        <div v-else>
+          <h1>Välkommen till Homecall</h1>
+          <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
 
-        <p class="home__no-devices" v-else>
-          Du har inga enheter
-        </p>
-      </div>
-
-      <button
-        class="home__register"
-        @click="registerDevice = true"
-      >
-        Registrera enhet
-      </button>
-    </aside>
-
-    <main class="home__dashboard">
-      <RegisterDevice
-        v-if="registerDevice"
-        @registered="handleRegistration"
-      ></RegisterDevice>
-
-      <EnrollDevice
-        v-else-if="enrollment"
-        :enrollment="enrollment"
-        @close="clearEnrollment"
-        @enrolled="handleEnrollment"
-      ></EnrollDevice>
-
-      <div v-else>
-        <h1>Välkommen till Homecall</h1>
-        <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
-
-        <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>
-      </div>
-    </main>
-  </div>
+          <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>
+        </div>
+      </main>
+    </div>
+  </Office>
 </template>
 
 <style lang="scss" scoped>

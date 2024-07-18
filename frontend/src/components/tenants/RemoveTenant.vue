@@ -3,8 +3,10 @@ import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router'
+import { useTenantIdStore } from '@/stores/tenantId';
 
 const { getAccessTokenSilently } = useAuth0();
+const { tenantId, removeTenantId } = useTenantIdStore();
 const open = ref(false);
 const router = useRouter();
 
@@ -19,12 +21,6 @@ const toggle = () => {
  * Remove the tenant.
  */
 const removeTenant = async () => {
-    const tenantId = localStorage.getItem('tenantId')
-
-    if(!tenantId) {
-        return;
-    }
-
     const token = await getAccessTokenSilently();
     const auth = {
         headers: {
@@ -37,7 +33,7 @@ const removeTenant = async () => {
     }, auth);
     open.value = false;
 
-    localStorage.removeItem('tenantId');
+    removeTenantId();
     router.push('/tenants');
 };
 </script>

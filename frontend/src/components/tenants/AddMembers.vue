@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTenantIdStore } from '@/stores/tenantId';
 import { ref, onMounted } from 'vue';
 import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
@@ -8,18 +9,21 @@ import RemoveMember from '@/components/tenants/members/RemoveMember.vue';
 import { Role } from "./../../../gen/connect/homecall/v1alpha/tenant_service_pb";
 
 const { getAccessTokenSilently, user } = useAuth0();
+const tenantIdStore = useTenantIdStore();
 const allMembers = ref<any[]>([]);
+
+/**
+ * Subscribe to tenantId changes.
+ */
+useTenantIdStore().$subscribe(() => {
+    getAllMembers()
+})
 
 /**
  * Get all members of the tenant.
  */
 const getAllMembers = async () => {
     allMembers.value = []
-    const tenantId = localStorage.getItem('tenantId')
-
-    if(!tenantId) {
-        return;
-    }
 
     const token = await getAccessTokenSilently();
     const auth = {
@@ -31,7 +35,7 @@ const getAllMembers = async () => {
     }
 
     const { tenantMembers } = await tenantClient.listTenantMembers({
-        tenantId: tenantId
+        tenantId: tenantIdStore.tenantId
     }, auth)
 
     allMembers.value.push(...tenantMembers)

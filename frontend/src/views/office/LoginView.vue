@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Office from '@/templates/Office.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 
 const { loginWithRedirect } = useAuth0();
@@ -15,36 +16,38 @@ const signup = () => {
 </script>
 
 <template>
-    <main class="login">
-        <div class="login__left">
-            <h1 class="login__title">
-                Logga in / Skapa konto
-            </h1>
+    <Office>
+        <main class="login">
+            <div class="login__left">
+                <h1 class="login__title">
+                    Logga in / Skapa konto
+                </h1>
 
-            <p class="login__text">
-                Du kommer att bli omdirigerad till en inloggningssida där du kan logga in med ditt konto.
-            </p>
+                <p class="login__text">
+                    Du kommer att bli omdirigerad till en inloggningssida där du kan logga in med ditt konto.
+                </p>
 
-            <div class="login__btns">
-                <button
-                    class="login__btn login__btn--filled"
-                    @click="login"
-                >
-                    Logga in
-                </button>
+                <div class="login__btns">
+                    <button
+                        class="login__btn login__btn--filled"
+                        @click="login"
+                    >
+                        Logga in
+                    </button>
 
-                <button
-                    class="login__btn login__btn--outlined"
-                    @click="signup"
-                >
-                    Registrera dig
-                </button>
+                    <button
+                        class="login__btn login__btn--outlined"
+                        @click="signup"
+                    >
+                        Registrera dig
+                    </button>
+                </div>
             </div>
-        </div>
 
-        <div class="login__right">
-        </div>
-    </main>
+            <div class="login__right">
+            </div>
+        </main>
+    </Office>
 </template>
 
 <style lang="scss" scoped>
