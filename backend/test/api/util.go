@@ -17,6 +17,7 @@ import (
 	"sidus.io/home-call/services/auth"
 	"sidus.io/home-call/util"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -85,7 +86,7 @@ func createTestTenant(t *testing.T, name string, adminUser string, tenantClient 
 func randomUser(t *testing.T) string {
 	user, err := util.RandomString(10)
 	require.NoError(t, err)
-	return user + "@example.com"
+	return strings.ToLower(user) + "@example.com"
 }
 
 func getNextAvailablePort() (string, error) {

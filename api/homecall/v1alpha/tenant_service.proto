@@ -16,9 +16,6 @@ service TenantService {
     // RemoveTenant removes a tenant.
     rpc RemoveTenant(RemoveTenantRequest) returns (RemoveTenantResponse);
 
-    // CreateTenantMember creates a new tenant member.
-    rpc CreateTenantMember(CreateTenantMemberRequest) returns (CreateTenantMemberResponse);
-
     // ListTenantMembers returns a list of all tenant members.
     rpc ListTenantMembers(ListTenantMembersRequest) returns (ListTenantMembersResponse);
 
@@ -27,6 +24,18 @@ service TenantService {
 
     // UpdateTenantMember updates a tenant member.
     rpc UpdateTenantMember(UpdateTenantMemberRequest) returns (UpdateTenantMemberResponse);
+
+    // CreateTenantInvite creates a new tenant invite.
+    rpc CreateTenantInvite(CreateTenantInviteRequest) returns (CreateTenantInviteResponse);
+
+    // ListTenantInvites returns a list of all tenant invites.
+    rpc ListTenantInvites(ListTenantInvitesRequest) returns (ListTenantInvitesResponse);
+
+    // RemoveTenantInvite removes a tenant invite.
+    rpc RemoveTenantInvite(RemoveTenantInviteRequest) returns (RemoveTenantInviteResponse);
+
+    // AcceptTenantInvite accepts a tenant invite.
+    rpc AcceptTenantInvite(AcceptTenantInviteRequest) returns (AcceptTenantInviteResponse);
 }
 
 // CreateTenantRequest is the request message for the CreateTenant method.
@@ -59,24 +68,6 @@ message RemoveTenantRequest {
 // RemoveTenantResponse is the response message for the RemoveTenant method.
 message RemoveTenantResponse {}
 
-// CreateTenantMemberRequest is the request message for the CreateTenantMember method.
-message CreateTenantMemberRequest {
-    // The ID of the tenant to add the member to.
-    string tenant_id = 1;
-
-    // The ID of the user to add as a member.
-    string email = 2;
-
-    // The role of the member.
-    Role role = 3;
-}
-
-// CreateTenantMemberResponse is the response message for the CreateTenantMember method.
-message CreateTenantMemberResponse {
-    // The tenant member that was created.
-    TenantMember tenant_member = 1;
-}
-
 // ListTenantMembersRequest is the request message for the ListTenantMembers method.
 message ListTenantMembersRequest {
     // The ID of the tenant to list the members of.
@@ -91,10 +82,8 @@ message ListTenantMembersResponse {
 
 // RemoveTenantMemberRequest is the request message for the RemoveTenantMember method.
 message RemoveTenantMemberRequest {
-    // The id of the tenant to remove the member from.
-    string tenant_id = 1;
-    // The email of the user to remove as a member.
-    string email = 2;
+    // The ID of the tenant member.
+    string id = 1;
 }
 
 // RemoveTenantMemberResponse is the response message for the RemoveTenantMember method.
@@ -102,10 +91,8 @@ message RemoveTenantMemberResponse {}
 
 // UpdateTenantMemberRequest is the request message for the UpdateTenantMember method.
 message UpdateTenantMemberRequest {
-    // The id of the tenant to update the member on.
-    string tenant_id = 1;
-    // The email of the user member to update.
-    string email = 2;
+    // The ID of the tenant member.
+    string id = 1;
 
     // The role of the member.
     Role role = 3;
@@ -113,6 +100,54 @@ message UpdateTenantMemberRequest {
 
 // UpdateTenantMemberResponse is the response message for the UpdateTenantMember method.
 message UpdateTenantMemberResponse {}
+
+// CreateTenantInviteRequest is the request message for the CreateTenantInvite method.
+message CreateTenantInviteRequest {
+    // The ID of the tenant to create the invite for.
+    string tenant_id = 1;
+
+    // The email of the user to invite.
+    string email = 2;
+
+    // The role of the member.
+    Role role = 3;
+}
+
+// CreateTenantInviteResponse is the response message for the CreateTenantInvite method.
+message CreateTenantInviteResponse {
+    // The tenant invite that was created.
+    TenantInvite tenant_invite = 1;
+}
+
+// ListTenantInvitesRequest is the request message for the ListTenantInvites method.
+message ListTenantInvitesRequest {
+    // The ID of the tenant to list the invites of.
+    string tenant_id = 1;
+}
+
+// ListTenantInvitesResponse is the response message for the ListTenantInvites method.
+message ListTenantInvitesResponse {
+    // The list of tenant invites.
+    repeated TenantInvite tenant_invites = 1;
+}
+
+// RemoveTenantInviteRequest is the request message for the RemoveTenantInvite method.
+message RemoveTenantInviteRequest {
+    // The ID of the tenant invite to remove.
+    string id = 1;
+}
+
+// RemoveTenantInviteResponse is the response message for the RemoveTenantInvite method.
+message RemoveTenantInviteResponse {}
+
+// AcceptTenantInviteRequest is the request message for the AcceptTenantInvite method.
+message AcceptTenantInviteRequest {
+    // The ID of the tenant invite to accept.
+    string id = 1;
+}
+
+// AcceptTenantInviteResponse is the response message for the AcceptTenantInvite method.
+message AcceptTenantInviteResponse {}
 
 // Tenant represents a tenant.
 message Tenant {
@@ -128,10 +163,34 @@ message Tenant {
 
 // TenantMember represents a tenant member.
 message TenantMember {
+    // The ID of the tenant member.
+    string id = 1;
+
     // The ID of the tenant.
     string tenant_id = 2;
 
     // The ID of the user.
+    string subject = 3;
+
+    // The email of the user.
+    string verified_email = 4;
+
+    // The name of the user.
+    string display_name = 5;
+
+    // The role of the member.
+    Role role = 6;
+}
+
+// TenantInvite represents a tenant invite.
+message TenantInvite {
+    // The ID of the tenant invite.
+    string id = 1;
+
+    // The ID of the tenant.
+    string tenant_id = 2;
+
+    // The email of the user.
     string email = 3;
 
     // The role of the member.

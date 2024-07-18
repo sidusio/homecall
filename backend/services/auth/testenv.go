@@ -8,7 +8,7 @@ import (
 
 func WithDummyToken[T any](subject string, request *connect.Request[T]) *connect.Request[T] {
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": subject,
+		"sub": fmt.Sprintf("user:%s", subject),
 	})
 	tokenString, err := jwtToken.SignedString([]byte("secret"))
 	if err != nil {
