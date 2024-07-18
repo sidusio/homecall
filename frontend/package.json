@@ -30,6 +30,9 @@
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@event-calendar/core": "^3.2.1",
+    "@event-calendar/interaction": "^3.2.1",
+    "@event-calendar/time-grid": "^3.2.1",
     "@rushstack/eslint-patch": "^1.8.0",
     "@tsconfig/node20": "^20.1.4",
     "@types/node": "^20.12.7",

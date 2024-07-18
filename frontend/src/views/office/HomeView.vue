@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import Calendar from '@event-calendar/core';
+import TimeGrid from '@event-calendar/time-grid';
+import Interaction from '@event-calendar/interaction';
+import '@event-calendar/core/index.css';
 import Office from '@/templates/Office.vue';
 import { officeClient } from '@/clients';
 import { onMounted, ref, watch } from 'vue';
@@ -113,6 +117,32 @@ const removeDevice = async (deviceId: string) => {
 
 onMounted(async () => {
   listDevices()
+
+  let ec = new Calendar({
+    target: document.getElementById('calendar'),
+    props: {
+        plugins: [TimeGrid, Interaction],
+        options: {
+            view: 'timeGridWeek',
+            events: [
+              {
+                title: 'Möte',
+                start: '2024-07-19T10:00:00',
+                end: '2024-07-19T11:00:00',
+              }
+            ],
+            buttonText: {
+              today: 'Idag'
+            },
+            allDaySlot: false,
+            firstDay: 1,
+            locale: 'sv',
+            nowIndicator: true,
+            editable: true,
+            selectable: true,
+        }
+    }
+  });
 })
 </script>
 
@@ -192,11 +222,13 @@ onMounted(async () => {
           @enrolled="handleEnrollment"
         ></EnrollDevice>
 
-        <div v-else>
-          <h1>Välkommen till Homecall</h1>
+        <div class="home__main" v-else>
+          <!--<h1>Välkommen till Homecall</h1>
           <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
 
-          <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>
+          <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>-->
+
+          <div id="calendar"></div>
         </div>
       </main>
     </div>
@@ -210,6 +242,10 @@ onMounted(async () => {
   height: $viewport-height;
   display: flex;
   gap: 1rem;
+
+  &__main {
+    width: 100%;
+  }
 
   &__side {
     display: flex;
@@ -377,8 +413,13 @@ onMounted(async () => {
     justify-content: center;
     align-items: center;
     flex: 1;
-    padding: 2rem;
     text-align: center;
   }
+}
+
+#calendar {
+  height: $viewport-height;
+  overflow: auto;
+  padding: 1rem;
 }
 </style>
