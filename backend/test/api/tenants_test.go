@@ -151,7 +151,7 @@ func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1a
 		}))
 		require.NoError(t, err)
 		for _, m := range resp.Msg.TenantMembers {
-			if m.Email == email && m.Role == role {
+			if m.VerifiedEmail == email && m.Role == role {
 				return true
 			}
 		}
@@ -239,8 +239,8 @@ func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1a
 
 	for i, step := range steps {
 		t.Run(fmt.Sprintf("step %d: %s", i, step.description), func(t *testing.T) {
-			resp, err := c.tenantClient.CreateTenantMember(ctx, auth.WithDummyToken(step.asUser, &connect.Request[homecallv1alpha.CreateTenantMemberRequest]{
-				Msg: &homecallv1alpha.CreateTenantMemberRequest{
+			invite, err := c.tenantClient.CreateTenantInvite(ctx, auth.WithDummyToken(step.asUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
+				Msg: &homecallv1alpha.CreateTenantInviteRequest{
 					TenantId: tenant.Id,
 					Email:    step.addUser,
 					Role:     step.withRole,
@@ -251,11 +251,17 @@ func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1a
 				require.False(t, isMember(t, step.addUser, step.withRole))
 			} else {
 				require.NoError(t, err)
-				require.True(t, isMember(t, step.addUser, step.withRole))
+				assert.Equal(t, invite.Msg.GetTenantInvite().GetRole(), step.withRole)
+				assert.Equal(t, invite.Msg.GetTenantInvite().GetEmail(), step.addUser)
+				assert.Equal(t, invite.Msg.GetTenantInvite().GetTenantId(), tenant.Id)
 
-				assert.Equal(t, resp.Msg.GetTenantMember().GetRole(), step.withRole)
-				assert.Equal(t, resp.Msg.GetTenantMember().GetEmail(), step.addUser)
-				assert.Equal(t, resp.Msg.GetTenantMember().GetTenantId(), tenant.Id)
+				_, err := c.tenantClient.AcceptTenantInvite(ctx, auth.WithDummyToken(step.addUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
+					Msg: &homecallv1alpha.AcceptTenantInviteRequest{
+						Id: invite.Msg.GetTenantInvite().GetId(),
+					},
+				}))
+				require.NoError(t, err)
+				require.True(t, isMember(t, step.addUser, step.withRole))
 			}
 		})
 	}
@@ -281,11 +287,17 @@ func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha
 
 	// Setup
 	// Create a member
-	_, err := c.tenantClient.CreateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantMemberRequest]{
-		Msg: &homecallv1alpha.CreateTenantMemberRequest{
+	invite, err := c.tenantClient.CreateTenantInvite(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
+		Msg: &homecallv1alpha.CreateTenantInviteRequest{
 			TenantId: tenant.Id,
 			Email:    memberUser,
 			Role:     homecallv1alpha.Role_ROLE_MEMBER,
+		},
+	}))
+	require.NoError(t, err)
+	_, err = c.tenantClient.AcceptTenantInvite(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
+		Msg: &homecallv1alpha.AcceptTenantInviteRequest{
+			Id: invite.Msg.GetTenantInvite().GetId(),
 		},
 	}))
 	require.NoError(t, err)

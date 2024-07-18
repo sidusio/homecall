@@ -87,8 +87,18 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 	officeService := officeapi.NewService(db, broker, jitsiApp, logger.With("component", "officeapi"), tenantService)
 	logger.Info("service layer created")
 
+	// Auth interceptor
+	authIssuerUrl, err := url.Parse(cfg.AuthIssuer)
+	if err != nil {
+		return fmt.Errorf("failed to parse auth issuer url: %w", err)
+	}
+	authInterceptor, err := auth.NewAuthInterceptor(authIssuerUrl, cfg.AuthAudience, cfg.AuthDisabled, db)
+	if err != nil {
+		return fmt.Errorf("failed to create auth interceptor: %w", err)
+	}
+
 	// Http server
-	httpServer, err := setupHttpServer(logger, cfg, deviceService, officeService, tenantService)
+	httpServer, err := setupHttpServer(logger, cfg, deviceService, officeService, tenantService, authInterceptor)
 	if err != nil {
 		return fmt.Errorf("failed to setup http server: %w", err)
 	}
@@ -148,18 +158,8 @@ func setupHttpServer(
 	deviceService *deviceapi.Service,
 	officeService *officeapi.Service,
 	tenantService *tenantapi.Service,
+	authInterceptor *auth.AuthInterceptor,
 ) (*http.Server, error) {
-
-	authIssuerUrl, err := url.Parse(cfg.AuthIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse auth issuer url: %w", err)
-	}
-
-	authInterceptor, err := auth.NewAuthInterceptor(authIssuerUrl, cfg.AuthAudience, cfg.AuthDisabled)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create auth interceptor: %w", err)
-	}
-
 	deviceInterceptors := []connect.Interceptor{
 		newContextInterceptor(),
 	}

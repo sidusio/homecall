@@ -7,7 +7,9 @@ type key int
 var authKey key = 0
 
 type Auth struct {
-	Subject string
+	Subject       string
+	DisplayName   string
+	VerifiedEmail string
 }
 
 func WithAuth(ctx context.Context, auth *Auth) context.Context {
