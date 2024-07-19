@@ -220,22 +220,44 @@ func (s *Service) CreateTenantInvite(ctx context.Context, req *connect.Request[h
 }
 
 func (s *Service) ListTenantInvites(ctx context.Context, req *connect.Request[homecallv1alpha.ListTenantInvitesRequest]) (*connect.Response[homecallv1alpha.ListTenantInvitesResponse], error) {
-	err := s.CanAccessTenant(ctx, req.Msg.GetTenantId(), true)
-	if err != nil {
-		return nil, fmt.Errorf("failed access tenant invites: %w", err)
+	var stmt SelectStatement
+	if req.Msg.GetTenantId() != "" {
+		err := s.CanAccessTenant(ctx, req.Msg.GetTenantId(), true)
+		if err != nil {
+			return nil, fmt.Errorf("failed access tenant invites: %w", err)
+		}
+
+		stmt = SELECT(
+			TenantInvite.InviteID,
+			TenantInvite.Email,
+			TenantInvite.Role,
+			Tenant.TenantID,
+		).FROM(
+			TenantInvite.
+				LEFT_JOIN(Tenant, TenantInvite.TenantID.EQ(Tenant.ID)),
+		).WHERE(Tenant.TenantID.EQ(String(req.Msg.GetTenantId())))
+	} else {
+		authDetails := auth.GetAuth(ctx)
+		if authDetails == nil {
+			return nil, fmt.Errorf("no auth details")
+		}
+
+		stmt = SELECT(
+			TenantInvite.InviteID,
+			TenantInvite.Email,
+			TenantInvite.Role,
+			Tenant.TenantID,
+		).FROM(
+			TenantInvite.
+				LEFT_JOIN(Tenant, TenantInvite.TenantID.EQ(Tenant.ID)),
+		).WHERE(TenantInvite.Email.EQ(String(normalizeEmail(authDetails.VerifiedEmail))))
 	}
 
-	stmt := SELECT(
-		TenantInvite.InviteID,
-		TenantInvite.Email,
-		TenantInvite.Role,
-	).FROM(
-		TenantInvite.
-			LEFT_JOIN(Tenant, TenantInvite.TenantID.EQ(Tenant.ID)),
-	).WHERE(Tenant.TenantID.EQ(String(req.Msg.GetTenantId())))
-
-	var dbInvites []model.TenantInvite
-	err = stmt.QueryContext(ctx, s.db, &dbInvites)
+	var dbInvites []struct {
+		model.TenantInvite
+		model.Tenant
+	}
+	err := stmt.QueryContext(ctx, s.db, &dbInvites)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tenant invites: %w", err)
 	}
@@ -243,14 +265,14 @@ func (s *Service) ListTenantInvites(ctx context.Context, req *connect.Request[ho
 	invites := make([]*homecallv1alpha.TenantInvite, len(dbInvites))
 	for i, dbInvite := range dbInvites {
 		role := homecallv1alpha.Role_ROLE_MEMBER
-		if dbInvite.Role == "admin" {
+		if dbInvite.TenantInvite.Role == "admin" {
 			role = homecallv1alpha.Role_ROLE_ADMIN
 		}
 
 		invites[i] = &homecallv1alpha.TenantInvite{
-			Id:       dbInvite.InviteID,
-			TenantId: req.Msg.GetTenantId(),
-			Email:    normalizeEmail(dbInvite.Email),
+			Id:       dbInvite.TenantInvite.InviteID,
+			TenantId: dbInvite.Tenant.TenantID,
+			Email:    normalizeEmail(dbInvite.TenantInvite.Email),
 			Role:     role,
 		}
 	}

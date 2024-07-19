@@ -122,6 +122,7 @@ message CreateTenantInviteResponse {
 // ListTenantInvitesRequest is the request message for the ListTenantInvites method.
 message ListTenantInvitesRequest {
     // The ID of the tenant to list the invites of.
+    // Leave empty to list all invites the user can respond to.
     string tenant_id = 1;
 }
 
