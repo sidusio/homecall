@@ -207,13 +207,20 @@ func (s *Service) CreateTenantInvite(ctx context.Context, req *connect.Request[h
 
 	}
 
+	tenant := model.Tenant{}
+	err = SELECT(Tenant.Name).FROM(Tenant).WHERE(Tenant.TenantID.EQ(String(req.Msg.GetTenantId()))).LIMIT(1).QueryContext(ctx, s.db, &tenant)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tenant: %w", err)
+	}
+
 	return &connect.Response[homecallv1alpha.CreateTenantInviteResponse]{
 		Msg: &homecallv1alpha.CreateTenantInviteResponse{
 			TenantInvite: &homecallv1alpha.TenantInvite{
-				Id:       inviteID,
-				TenantId: req.Msg.GetTenantId(),
-				Email:    normalizeEmail(req.Msg.GetEmail()),
-				Role:     req.Msg.GetRole(),
+				Id:         inviteID,
+				TenantId:   req.Msg.GetTenantId(),
+				Email:      normalizeEmail(req.Msg.GetEmail()),
+				Role:       req.Msg.GetRole(),
+				TenantName: tenant.Name,
 			},
 		},
 	}, nil
@@ -232,6 +239,7 @@ func (s *Service) ListTenantInvites(ctx context.Context, req *connect.Request[ho
 			TenantInvite.Email,
 			TenantInvite.Role,
 			Tenant.TenantID,
+			Tenant.Name,
 		).FROM(
 			TenantInvite.
 				LEFT_JOIN(Tenant, TenantInvite.TenantID.EQ(Tenant.ID)),
@@ -247,6 +255,7 @@ func (s *Service) ListTenantInvites(ctx context.Context, req *connect.Request[ho
 			TenantInvite.Email,
 			TenantInvite.Role,
 			Tenant.TenantID,
+			Tenant.Name,
 		).FROM(
 			TenantInvite.
 				LEFT_JOIN(Tenant, TenantInvite.TenantID.EQ(Tenant.ID)),
@@ -270,10 +279,11 @@ func (s *Service) ListTenantInvites(ctx context.Context, req *connect.Request[ho
 		}
 
 		invites[i] = &homecallv1alpha.TenantInvite{
-			Id:       dbInvite.TenantInvite.InviteID,
-			TenantId: dbInvite.Tenant.TenantID,
-			Email:    normalizeEmail(dbInvite.TenantInvite.Email),
-			Role:     role,
+			Id:         dbInvite.TenantInvite.InviteID,
+			TenantId:   dbInvite.Tenant.TenantID,
+			Email:      normalizeEmail(dbInvite.TenantInvite.Email),
+			Role:       role,
+			TenantName: dbInvite.Tenant.Name,
 		}
 	}
 
