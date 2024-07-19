@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import Calendar from '@event-calendar/core';
-import TimeGrid from '@event-calendar/time-grid';
-import Interaction from '@event-calendar/interaction';
 import '@event-calendar/core/index.css';
 import Office from '@/templates/Office.vue';
 import { officeClient } from '@/clients';
 import { onMounted, ref, watch } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
+import Calendar from '@/components/Calendar.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useTenantIdStore } from '@/stores/tenantId';
 
@@ -117,32 +115,6 @@ const removeDevice = async (deviceId: string) => {
 
 onMounted(async () => {
   listDevices()
-
-  let ec = new Calendar({
-    target: document.getElementById('calendar'),
-    props: {
-        plugins: [TimeGrid, Interaction],
-        options: {
-            view: 'timeGridWeek',
-            events: [
-              {
-                title: 'Möte',
-                start: '2024-07-19T10:00:00',
-                end: '2024-07-19T11:00:00',
-              }
-            ],
-            buttonText: {
-              today: 'Idag'
-            },
-            allDaySlot: false,
-            firstDay: 1,
-            locale: 'sv',
-            nowIndicator: true,
-            editable: true,
-            selectable: true,
-        }
-    }
-  });
 })
 </script>
 
@@ -228,7 +200,7 @@ onMounted(async () => {
 
           <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>-->
 
-          <div id="calendar"></div>
+          <Calendar />
         </div>
       </main>
     </div>
@@ -415,11 +387,5 @@ onMounted(async () => {
     flex: 1;
     text-align: center;
   }
-}
-
-#calendar {
-  height: $viewport-height;
-  overflow: auto;
-  padding: 1rem;
 }
 </style>
