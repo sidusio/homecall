@@ -46,6 +46,10 @@ func TestApi(t *testing.T) {
 				test: testTenantMembersAdd,
 			},
 			{
+				name: "tenant member admin",
+				test: testTenantMemberAdmin,
+			},
+			{
 				name: "device call",
 				test: testDeviceCall,
 			},
@@ -134,6 +138,98 @@ func testDeviceCall(t *testing.T, ctx context.Context, tenant *homecallv1alpha.T
 	require.NotNil(t, resp)
 
 	//wg.Wait()
+}
+
+func testTenantMemberAdmin(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients) {
+	memberUser := randomUser(t)
+	nonMemberUser := randomUser(t)
+
+	invite, err := c.tenantClient.CreateTenantInvite(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
+		Msg: &homecallv1alpha.CreateTenantInviteRequest{
+			TenantId: tenant.Id,
+			Email:    memberUser,
+			Role:     homecallv1alpha.Role_ROLE_MEMBER,
+		},
+	}))
+	require.NoError(t, err)
+
+	_, err = c.tenantClient.AcceptTenantInvite(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
+		Msg: &homecallv1alpha.AcceptTenantInviteRequest{
+			Id: invite.Msg.GetTenantInvite().GetId(),
+		},
+	}))
+	require.NoError(t, err)
+
+	tenantMembers, err := c.tenantClient.ListTenantMembers(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantMembersRequest]{
+		Msg: &homecallv1alpha.ListTenantMembersRequest{
+			TenantId: tenant.Id,
+		},
+	}))
+	require.NoError(t, err)
+
+	var adminTenantMember, memberTenantMember *homecallv1alpha.TenantMember
+	for _, m := range tenantMembers.Msg.TenantMembers {
+		if m.VerifiedEmail == adminUser {
+			adminTenantMember = m
+		} else if m.VerifiedEmail == memberUser {
+			memberTenantMember = m
+		}
+	}
+	require.NotNil(t, adminTenantMember)
+	require.NotNil(t, memberTenantMember)
+
+	// non-member should not be able to update or remove tenant members
+	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
+			Id: adminTenantMember.GetId(),
+		},
+	}))
+	require.Error(t, err)
+	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
+			Id: memberTenantMember.GetId(),
+		},
+	}))
+
+	// member should not be able to remove or update members
+	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
+			Id: memberTenantMember.GetId(),
+		},
+	}))
+	require.Error(t, err)
+	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
+			Id: adminTenantMember.GetId(),
+		},
+	}))
+
+	// admin should be able to update and remove members
+	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
+			Id:   memberTenantMember.GetId(),
+			Role: homecallv1alpha.Role_ROLE_ADMIN,
+		},
+	}))
+	require.NoError(t, err)
+	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
+			Id: memberTenantMember.GetId(),
+		},
+	}))
+
+	// admin should not be able to update or remove self
+	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
+			Id: adminTenantMember.GetId(),
+		},
+	}))
+	require.Error(t, err)
+	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
+			Id: adminTenantMember.GetId(),
+		},
+	}))
 }
 
 func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients) {

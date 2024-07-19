@@ -382,7 +382,7 @@ func (s *Service) RemoveTenantMember(ctx context.Context, req *connect.Request[h
 	if err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		return nil, fmt.Errorf("failed to query user tenant: %w", err)
 	}
-	if errors.Is(err, qrm.ErrNoRows) || result.Count > 0 {
+	if !errors.Is(err, qrm.ErrNoRows) || (err != nil && result.Count > 0) {
 		return nil, fmt.Errorf("cannot remove yourself")
 	}
 
@@ -423,7 +423,7 @@ func (s *Service) UpdateTenantMember(ctx context.Context, req *connect.Request[h
 	if err != nil && !errors.Is(err, qrm.ErrNoRows) {
 		return nil, fmt.Errorf("failed to query user tenant: %w", err)
 	}
-	if errors.Is(err, qrm.ErrNoRows) || result.Count > 0 {
+	if !errors.Is(err, qrm.ErrNoRows) || (err != nil && result.Count > 0) {
 		return nil, fmt.Errorf("cannot update yourself")
 	}
 
@@ -542,7 +542,8 @@ func (s *Service) CanAccessTenantMember(ctx context.Context, memberID string, ad
 		return ErrNoAccess
 	}
 
-	conditions := UserTenant.MemberID.EQ(String(memberID)).
+	targetUserTenant := UserTenant.AS("target_user_tenant")
+	conditions := targetUserTenant.MemberID.EQ(String(memberID)).
 		AND(User.IdpUserID.EQ(String(authDetails.Subject)))
 	if adminRequired {
 		conditions = conditions.AND(UserTenant.Role.EQ(enum.TenantRole.Admin))
@@ -550,8 +551,9 @@ func (s *Service) CanAccessTenantMember(ctx context.Context, memberID string, ad
 
 	// Check if the user has access to the tenant
 	stmt := SELECT(COUNT(User.ID).AS("count")).FROM(
-		UserTenant.
-			LEFT_JOIN(Tenant, UserTenant.TenantID.EQ(Tenant.ID)).
+		targetUserTenant.
+			LEFT_JOIN(Tenant, targetUserTenant.TenantID.EQ(Tenant.ID)).
+			LEFT_JOIN(UserTenant, UserTenant.TenantID.EQ(Tenant.ID)).
 			LEFT_JOIN(User, User.ID.EQ(UserTenant.UserID)),
 	).WHERE(conditions).GROUP_BY(User.ID).LIMIT(1)
 	var result struct{ Count int }
