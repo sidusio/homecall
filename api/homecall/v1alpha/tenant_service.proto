@@ -196,6 +196,9 @@ message TenantInvite {
 
     // The role of the member.
     Role role = 4;
+
+    // The name of the tenant.
+    string tenant_name = 5;
 }
 
 // Role represents a role.
