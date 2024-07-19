@@ -414,7 +414,7 @@ func (s *Service) UpdateTenantMember(ctx context.Context, req *connect.Request[h
 		return nil, fmt.Errorf("failed to query user tenant: %w", err)
 	}
 	if errors.Is(err, qrm.ErrNoRows) || result.Count > 0 {
-		return nil, fmt.Errorf("cannot umpdate yourself")
+		return nil, fmt.Errorf("cannot update yourself")
 	}
 
 	//nolint:ineffassign,staticcheck
