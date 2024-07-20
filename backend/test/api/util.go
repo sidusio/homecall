@@ -4,73 +4,17 @@ import (
 	"connectrpc.com/connect"
 	"context"
 	"fmt"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
-	"log/slog"
 	"net"
-	"os"
-	"sidus.io/home-call/app"
 	homecallv1alpha "sidus.io/home-call/gen/connect/homecall/v1alpha"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
-	"sidus.io/home-call/postgresdb"
 	"sidus.io/home-call/services/auth"
 	"sidus.io/home-call/util"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
-func WithApp(t *testing.T, f func(t *testing.T, ctx context.Context, apiAddress string)) {
-	t.Helper()
-	postgresdb.WithPostgres(t, func(t *testing.T, connectionDetails postgresdb.DirectConfig) {
-		ctx, cancel := context.WithCancel(context.Background())
-
-		logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		}))
-
-		port, err := getNextAvailablePort()
-		require.NoError(t, err)
-
-		var cfg app.Config
-		err = envconfig.Process("TEST_HOMECALL", &cfg)
-		if err != nil && err.Error() != "required key DB_PASSWORD missing value" {
-			require.NoError(t, err)
-		}
-		cfg.DBHost = connectionDetails.Hostname
-		cfg.DBPort = connectionDetails.Port
-		cfg.DBUser = connectionDetails.UserName
-		cfg.DBPassword = connectionDetails.Password
-		cfg.DBName = connectionDetails.Database
-		cfg.Port = port
-		cfg.AuthDisabled = true
-		cfg.JitsiKeyRaw = dummyPemKey
-
-		eg, ctx := errgroup.WithContext(ctx)
-		eg.Go(func() error {
-			return app.Run(ctx, logger, cfg)
-		})
-
-		eg.Go(func() error {
-			defer cancel()
-
-			err = waitForAddress(ctx, fmt.Sprintf("localhost:%s", port))
-			if err != nil {
-				return fmt.Errorf("failed to wait for address: %w", err)
-			}
-
-			f(t, ctx, fmt.Sprintf("http://localhost:%s", port))
-			return nil
-		})
-
-		err = eg.Wait()
-		require.NoError(t, err)
-	})
-}
-
-func createTestTenant(t *testing.T, name string, adminUser string, tenantClient homecallv1alphaconnect.TenantServiceClient) *homecallv1alpha.Tenant {
+func createTestTenant(name string, adminUser string, tenantClient homecallv1alphaconnect.TenantServiceClient) (*homecallv1alpha.Tenant, error) {
 	ctx := context.Background()
 
 	createRsp, err := tenantClient.CreateTenant(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantRequest]{
@@ -78,14 +22,18 @@ func createTestTenant(t *testing.T, name string, adminUser string, tenantClient 
 			Name: name,
 		},
 	}))
-	require.NoError(t, err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create test tenant: %w", err)
+	}
 
-	return createRsp.Msg.GetTenant()
+	return createRsp.Msg.GetTenant(), nil
 }
 
-func randomUser(t *testing.T) string {
+func randomUser() string {
 	user, err := util.RandomString(10)
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 	return strings.ToLower(user) + "@example.com"
 }
 
@@ -99,35 +47,11 @@ func getNextAvailablePort() (string, error) {
 	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port), nil
 }
 
-func waitForAddress(ctx context.Context, address string) error {
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			conn, _ := net.Dial("tcp", address)
-			if conn != nil {
-				defer conn.Close()
-				return
-			}
-			time.Sleep(time.Second / 10)
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("context done")
-	case <-time.After(time.Second * 10):
-		return fmt.Errorf("timeout")
-	case <-done:
-		return nil
-	}
+func testContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	return ctx
 }
 
 var dummyPemKey = `-----BEGIN PRIVATE KEY-----

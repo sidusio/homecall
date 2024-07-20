@@ -18,3 +18,8 @@ func WithDummyToken[T any](subject string, request *connect.Request[T]) *connect
 	request.Header().Set("Authorization", fmt.Sprintf("Bearer %s", tokenString))
 	return request
 }
+
+func WithToken[T any](token string, request *connect.Request[T]) *connect.Request[T] {
+	request.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	return request
+}

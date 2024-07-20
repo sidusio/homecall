@@ -8,74 +8,69 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"firebase.google.com/go/v4/messaging"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
 	homecallv1alpha "sidus.io/home-call/gen/connect/homecall/v1alpha"
-	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
+	"sidus.io/home-call/notifications/directorynotifications"
 	"sidus.io/home-call/services/auth"
+	"sidus.io/home-call/util"
+	"strings"
 	"testing"
+	"time"
 )
 
-type clients struct {
-	tenantClient homecallv1alphaconnect.TenantServiceClient
-	officeClient homecallv1alphaconnect.OfficeServiceClient
-	deviceClient homecallv1alphaconnect.DeviceServiceClient
+func TestMain(m *testing.M) {
+	os.Exit(func() int {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		notificationsDir, err := os.MkdirTemp("", "crudb-mock-notifications")
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(notificationsDir)
+
+		app, err := NewTestApp(WithNotificationDir(notificationsDir))
+		if err != nil {
+			panic(err)
+		}
+		err = app.Start(ctx)
+		if err != nil {
+			panic(err)
+		}
+		defer func() {
+			err := app.Stop()
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+		globalTestApp = app
+		return m.Run()
+	}())
 }
 
-type tenantTest = func(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients)
+var (
+	globalTestApp *TestApp
+)
 
-func TestApi(t *testing.T) {
+func TestDeviceCall(t *testing.T) {
 	t.Parallel()
-	WithApp(t, func(t *testing.T, ctx context.Context, apiAddress string) {
-		tenantClient := homecallv1alphaconnect.NewTenantServiceClient(http.DefaultClient, apiAddress)
-		officeClient := homecallv1alphaconnect.NewOfficeServiceClient(http.DefaultClient, apiAddress)
-		deviceClient := homecallv1alphaconnect.NewDeviceServiceClient(http.DefaultClient, apiAddress)
+	ctx := testContext(t)
+	adminUser := randomUser()
+	tenant, err := createTestTenant(t.Name(), adminUser, globalTestApp.TenantClient())
+	require.NoError(t, err)
 
-		testCases := []struct {
-			name string
-			test tenantTest
-		}{
-			{
-				name: "delete tenants",
-				test: testTenantDelete,
-			},
-			{
-				name: "tenant members add",
-				test: testTenantMembersAdd,
-			},
-			{
-				name: "tenant member admin",
-				test: testTenantMemberAdmin,
-			},
-			{
-				name: "device call",
-				test: testDeviceCall,
-			},
-		}
-
-		for _, testCase := range testCases {
-			t.Run(testCase.name, func(t *testing.T) {
-				adminUser := randomUser(t)
-				tenant := createTestTenant(t, testCase.name, adminUser, tenantClient)
-
-				testCase.test(t, ctx, tenant, adminUser, clients{
-					tenantClient: tenantClient,
-					officeClient: officeClient,
-					deviceClient: deviceClient,
-				})
-
-			})
-		}
-	})
-
-}
-
-func testDeviceCall(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients) {
-	device, err := c.officeClient.CreateDevice(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateDeviceRequest]{
+	device, err := globalTestApp.OfficeClient().CreateDevice(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateDeviceRequest]{
 		Msg: &homecallv1alpha.CreateDeviceRequest{
-			Name:     fmt.Sprintf("test-%s", randomUser(t)),
+			Name:     fmt.Sprintf("test-%s", randomUser()),
 			TenantId: tenant.Id,
 			DefaultSettings: &homecallv1alpha.DeviceSettings{
 				AutoAnswer:             true,
@@ -96,55 +91,110 @@ func testDeviceCall(t *testing.T, ctx context.Context, tenant *homecallv1alpha.T
 	})
 	require.NoError(t, err)
 
-	_, err = c.deviceClient.Enroll(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.EnrollRequest]{
+	deviceToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{
+		Subject:   device.Msg.GetDevice().GetId(),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Issuer:    "homecall-device",
+		Audience:  jwt.ClaimStrings{"homecall"},
+	}).SignedString(key)
+	require.NoError(t, err)
+
+	// attempt call before enrollment
+	_, err = globalTestApp.OfficeClient().StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+		Msg: &homecallv1alpha.StartCallRequest{
+			DeviceId: device.Msg.GetDevice().GetId(),
+		},
+	}))
+	cErr := &connect.Error{}
+	require.ErrorAs(t, err, &cErr)
+	require.Equal(t, connect.CodeFailedPrecondition, cErr.Code())
+
+	// Enroll device
+	_, err = globalTestApp.DeviceClient().Enroll(ctx, &connect.Request[homecallv1alpha.EnrollRequest]{
 		Msg: &homecallv1alpha.EnrollRequest{
 			EnrollmentKey: device.Msg.GetDevice().GetEnrollmentKey(),
 			PublicKey:     publicKey.String(),
 		},
+	})
+	require.NoError(t, err)
+
+	// attempt call before token registration
+	_, err = globalTestApp.OfficeClient().StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+		Msg: &homecallv1alpha.StartCallRequest{
+			DeviceId: device.Msg.GetDevice().GetId(),
+		},
+	}))
+	cErr = &connect.Error{}
+	require.ErrorAs(t, err, &cErr)
+	require.Equal(t, connect.CodeFailedPrecondition, cErr.Code())
+
+	// Register device token
+	deviceNotificationToken, err := util.RandomString(10)
+	require.NoError(t, err)
+
+	_, err = globalTestApp.DeviceClient().UpdateNotificationToken(ctx, auth.WithToken(deviceToken, &connect.Request[homecallv1alpha.UpdateNotificationTokenRequest]{
+		Msg: &homecallv1alpha.UpdateNotificationTokenRequest{
+			NotificationToken: deviceNotificationToken,
+		},
 	}))
 	require.NoError(t, err)
 
-	/*wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		waitResp, err := c.deviceClient.WaitForCall(ctx, &connect.Request[homecallv1alpha.WaitForCallRequest]{
-			Msg: &homecallv1alpha.WaitForCallRequest{
-				DeviceId: device.Msg.GetDevice().GetId(),
-			},
-		})
-		require.NoError(t, err)
-		defer waitResp.Close()
-
-		for waitResp.Receive() {
-			msg := waitResp.Msg()
-			require.NotEmpty(t, msg.GetCallId())
-			// TODO check jwt
-			// TODO check that call details align with device
-			return
-		}
-
-		require.NoError(t, waitResp.Err())
-		require.Fail(t, "no call received")
-	}() */
-
-	resp, err := c.officeClient.StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+	// attempt call after enrollment
+	call, err := globalTestApp.OfficeClient().StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
 		Msg: &homecallv1alpha.StartCallRequest{
 			DeviceId: device.Msg.GetDevice().GetId(),
 		},
 	}))
 	require.NoError(t, err)
-	require.NotNil(t, resp)
 
-	//wg.Wait()
+	message := &messaging.Message{}
+	err = filepath.Walk(path.Join(globalTestApp.NotificationsDir(), directorynotifications.DevicesDirectory, deviceNotificationToken), func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		if strings.HasSuffix(path, ".json") {
+			content, err := os.ReadFile(path)
+			require.NoError(t, err)
+			err = message.UnmarshalJSON(content)
+			require.NoError(t, err)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "call", message.Data["type"])
+	assert.Equal(t, call.Msg.GetCallId(), message.Data["callId"])
+
+	// Get call details
+	callDetails, err := globalTestApp.DeviceClient().GetCallDetails(ctx, auth.WithToken(deviceToken, &connect.Request[homecallv1alpha.GetCallDetailsRequest]{
+		Msg: &homecallv1alpha.GetCallDetailsRequest{
+			CallId: message.Data["callId"],
+		},
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, call.Msg.GetCallId(), callDetails.Msg.GetCallId())
+	assert.Equal(t, call.Msg.GetJitsiRoomId(), callDetails.Msg.GetJitsiRoomId())
+	assert.NotEqual(t, call.Msg.GetJitsiJwt(), callDetails.Msg.GetJitsiJwt())
+	assert.NotEmpty(t, call.Msg.GetJitsiJwt())
+	assert.NotEmpty(t, callDetails.Msg.GetJitsiJwt())
 }
 
-func testTenantMemberAdmin(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients) {
-	memberUser := randomUser(t)
-	nonMemberUser := randomUser(t)
+func TestTenantMemberAdmin(t *testing.T) {
+	t.Parallel()
+	ctx := testContext(t)
+	adminUser := randomUser()
+	tenant, err := createTestTenant(t.Name(), adminUser, globalTestApp.TenantClient())
+	require.NoError(t, err)
 
-	invite, err := c.tenantClient.CreateTenantInvite(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
+	memberUser := randomUser()
+	nonMemberUser := randomUser()
+
+	invite, err := globalTestApp.TenantClient().CreateTenantInvite(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
 		Msg: &homecallv1alpha.CreateTenantInviteRequest{
 			TenantId: tenant.Id,
 			Email:    memberUser,
@@ -153,14 +203,14 @@ func testTenantMemberAdmin(t *testing.T, ctx context.Context, tenant *homecallv1
 	}))
 	require.NoError(t, err)
 
-	_, err = c.tenantClient.AcceptTenantInvite(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
+	_, err = globalTestApp.TenantClient().AcceptTenantInvite(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
 		Msg: &homecallv1alpha.AcceptTenantInviteRequest{
 			Id: invite.Msg.GetTenantInvite().GetId(),
 		},
 	}))
 	require.NoError(t, err)
 
-	tenantMembers, err := c.tenantClient.ListTenantMembers(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantMembersRequest]{
+	tenantMembers, err := globalTestApp.TenantClient().ListTenantMembers(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantMembersRequest]{
 		Msg: &homecallv1alpha.ListTenantMembersRequest{
 			TenantId: tenant.Id,
 		},
@@ -179,68 +229,74 @@ func testTenantMemberAdmin(t *testing.T, ctx context.Context, tenant *homecallv1
 	require.NotNil(t, memberTenantMember)
 
 	// non-member should not be able to update or remove tenant members
-	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
 		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
 			Id: adminTenantMember.GetId(),
 		},
 	}))
 	require.Error(t, err)
-	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenantMember(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
 		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
 			Id: memberTenantMember.GetId(),
 		},
 	}))
 
 	// member should not be able to remove or update members
-	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
 		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
 			Id: memberTenantMember.GetId(),
 		},
 	}))
 	require.Error(t, err)
-	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
 		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
 			Id: adminTenantMember.GetId(),
 		},
 	}))
 
 	// admin should be able to update and remove members
-	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
 		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
 			Id:   memberTenantMember.GetId(),
 			Role: homecallv1alpha.Role_ROLE_ADMIN,
 		},
 	}))
 	require.NoError(t, err)
-	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
 		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
 			Id: memberTenantMember.GetId(),
 		},
 	}))
 
 	// admin should not be able to update or remove self
-	_, err = c.tenantClient.UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
 		Msg: &homecallv1alpha.UpdateTenantMemberRequest{
 			Id: adminTenantMember.GetId(),
 		},
 	}))
 	require.Error(t, err)
-	_, err = c.tenantClient.RemoveTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantMemberRequest]{
 		Msg: &homecallv1alpha.RemoveTenantMemberRequest{
 			Id: adminTenantMember.GetId(),
 		},
 	}))
 }
 
-func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients) {
-	memberUser := randomUser(t)
-	nonMemberUser := randomUser(t)
-	newAdminUser := randomUser(t)
-	newMemberUser := randomUser(t)
+func TestTenantMembersAdd(t *testing.T) {
+	t.Parallel()
+	ctx := testContext(t)
+	adminUser := randomUser()
+	tenant, err := createTestTenant(t.Name(), adminUser, globalTestApp.TenantClient())
+	require.NoError(t, err)
+
+	memberUser := randomUser()
+	nonMemberUser := randomUser()
+	newAdminUser := randomUser()
+	newMemberUser := randomUser()
 
 	// Check if member is added
 	isMember := func(t *testing.T, email string, role homecallv1alpha.Role) bool {
-		resp, err := c.tenantClient.ListTenantMembers(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantMembersRequest]{
+		resp, err := globalTestApp.TenantClient().ListTenantMembers(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantMembersRequest]{
 			Msg: &homecallv1alpha.ListTenantMembersRequest{
 				TenantId: tenant.Id,
 			},
@@ -335,7 +391,7 @@ func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1a
 
 	for i, step := range steps {
 		t.Run(fmt.Sprintf("step %d: %s", i, step.description), func(t *testing.T) {
-			invite, err := c.tenantClient.CreateTenantInvite(ctx, auth.WithDummyToken(step.asUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
+			invite, err := globalTestApp.TenantClient().CreateTenantInvite(ctx, auth.WithDummyToken(step.asUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
 				Msg: &homecallv1alpha.CreateTenantInviteRequest{
 					TenantId: tenant.Id,
 					Email:    step.addUser,
@@ -351,7 +407,7 @@ func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1a
 				assert.Equal(t, invite.Msg.GetTenantInvite().GetEmail(), step.addUser)
 				assert.Equal(t, invite.Msg.GetTenantInvite().GetTenantId(), tenant.Id)
 
-				_, err := c.tenantClient.AcceptTenantInvite(ctx, auth.WithDummyToken(step.addUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
+				_, err := globalTestApp.TenantClient().AcceptTenantInvite(ctx, auth.WithDummyToken(step.addUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
 					Msg: &homecallv1alpha.AcceptTenantInviteRequest{
 						Id: invite.Msg.GetTenantInvite().GetId(),
 					},
@@ -363,13 +419,19 @@ func testTenantMembersAdd(t *testing.T, ctx context.Context, tenant *homecallv1a
 	}
 }
 
-func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha.Tenant, adminUser string, c clients) {
-	memberUser := randomUser(t)
-	nonMemberUser := randomUser(t)
+func TestTenantDelete(t *testing.T) {
+	t.Parallel()
+	ctx := testContext(t)
+	adminUser := randomUser()
+	tenant, err := createTestTenant(t.Name(), adminUser, globalTestApp.TenantClient())
+	require.NoError(t, err)
+
+	memberUser := randomUser()
+	nonMemberUser := randomUser()
 
 	// Check if tenant is deleted
 	isDeleted := func(t *testing.T) bool {
-		resp, err := c.tenantClient.ListTenants(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantsRequest]{
+		resp, err := globalTestApp.TenantClient().ListTenants(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.ListTenantsRequest]{
 			Msg: &homecallv1alpha.ListTenantsRequest{},
 		}))
 		require.NoError(t, err)
@@ -383,7 +445,7 @@ func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha
 
 	// Setup
 	// Create a member
-	invite, err := c.tenantClient.CreateTenantInvite(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
+	invite, err := globalTestApp.TenantClient().CreateTenantInvite(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.CreateTenantInviteRequest]{
 		Msg: &homecallv1alpha.CreateTenantInviteRequest{
 			TenantId: tenant.Id,
 			Email:    memberUser,
@@ -391,7 +453,7 @@ func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha
 		},
 	}))
 	require.NoError(t, err)
-	_, err = c.tenantClient.AcceptTenantInvite(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
+	_, err = globalTestApp.TenantClient().AcceptTenantInvite(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.AcceptTenantInviteRequest]{
 		Msg: &homecallv1alpha.AcceptTenantInviteRequest{
 			Id: invite.Msg.GetTenantInvite().GetId(),
 		},
@@ -399,7 +461,7 @@ func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha
 	require.NoError(t, err)
 
 	// Attempt to delete tenant as non-member
-	_, err = c.tenantClient.RemoveTenant(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.RemoveTenantRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenant(ctx, auth.WithDummyToken(nonMemberUser, &connect.Request[homecallv1alpha.RemoveTenantRequest]{
 		Msg: &homecallv1alpha.RemoveTenantRequest{
 			Id: tenant.Id,
 		},
@@ -408,7 +470,7 @@ func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha
 	require.False(t, isDeleted(t))
 
 	// Attempt to delete tenant as member
-	_, err = c.tenantClient.RemoveTenant(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.RemoveTenantRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenant(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.RemoveTenantRequest]{
 		Msg: &homecallv1alpha.RemoveTenantRequest{
 			Id: tenant.Id,
 		},
@@ -417,7 +479,7 @@ func testTenantDelete(t *testing.T, ctx context.Context, tenant *homecallv1alpha
 	require.False(t, isDeleted(t))
 
 	// Attempt to delete tenant as admin
-	_, err = c.tenantClient.RemoveTenant(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantRequest]{
+	_, err = globalTestApp.TenantClient().RemoveTenant(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.RemoveTenantRequest]{
 		Msg: &homecallv1alpha.RemoveTenantRequest{
 			Id: tenant.Id,
 		},

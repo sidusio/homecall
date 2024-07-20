@@ -2,7 +2,6 @@ package messaging
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -112,44 +111,6 @@ func (b *Broker) Close() error {
 
 func (b *Broker) Started() <-chan struct{} {
 	return b.started
-}
-
-func (b *Broker) PublishCall(call Call) error {
-	callBytes, err := json.Marshal(call)
-	if err != nil {
-		return fmt.Errorf("failed to marshal call: %w", err)
-	}
-
-	return b.baseChannel.Publish(callsTopic, message.NewMessage(watermill.NewULID(), callBytes))
-}
-
-func (b *Broker) SubscribeToCalls(ctx context.Context, deviceId string, handler func(Call) error) error {
-	messages, err := b.callBroadcaster.Subscribe(ctx, callsTopic)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to calls: %w", err)
-	}
-
-	for msg := range messages {
-		var call Call
-		err := json.Unmarshal(msg.Payload, &call)
-		if err != nil {
-			msg.Nack()
-			return fmt.Errorf("failed to unmarshal call: %w", err)
-		}
-
-		if call.DeviceID != deviceId {
-			msg.Ack()
-			continue
-		}
-
-		err = handler(call)
-		if err != nil {
-			msg.Nack()
-			return fmt.Errorf("failed to handle call: %w", err)
-		}
-		msg.Ack()
-	}
-	return nil
 }
 
 func (b *Broker) PublishEnrollment(deviceId string) error {
