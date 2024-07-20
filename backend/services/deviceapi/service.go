@@ -11,6 +11,7 @@ import (
 	"github.com/go-jet/jet/v2/qrm"
 	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/protobuf/encoding/protojson"
+	jose "gopkg.in/go-jose/go-jose.v2/jwt"
 	"log/slog"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha"
 	"sidus.io/home-call/gen/connect/homecall/v1alpha/homecallv1alphaconnect"
@@ -99,7 +100,76 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alp
 	}, nil
 }
 
-func (s *Service) WaitForCall(ctx context.Context, req *connect.Request[homecallv1alpha.WaitForCallRequest], stream *connect.ServerStream[homecallv1alpha.WaitForCallResponse]) error {
+func (s *Service) UpdateNotificationToken(ctx context.Context, req *connect.Request[homecallv1alpha.UpdateNotificationTokenRequest]) (*connect.Response[homecallv1alpha.UpdateNotificationTokenResponse], error) {
+	deviceId, err := s.verifyDeviceToken(ctx, req)
+	if err != nil {
+		cErr := &connect.Error{}
+		if errors.As(err, &cErr) {
+			return nil, err
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	deviceIdExpression := SELECT(Device.ID).FROM(Device).WHERE(Device.DeviceID.EQ(String(deviceId))).LIMIT(1)
+
+	updateStmt := DeviceNotificationToken.
+		INSERT(DeviceNotificationToken.DeviceID, DeviceNotificationToken.NotificationToken, DeviceNotificationToken.UpdatedAt).
+		VALUES(deviceIdExpression, req.Msg.GetNotificationToken(), CAST(NOW()).AS_TIMESTAMP()).
+		ON_CONFLICT(DeviceNotificationToken.DeviceID).
+		DO_UPDATE(SET(
+			DeviceNotificationToken.NotificationToken.SET(String(req.Msg.GetNotificationToken())),
+			DeviceNotificationToken.UpdatedAt.SET(CAST(NOW()).AS_TIMESTAMP()),
+		))
+
+	_, err = updateStmt.ExecContext(ctx, s.db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update fcm token: %w", err)
+	}
+
+	return &connect.Response[homecallv1alpha.UpdateNotificationTokenResponse]{
+		Msg: &homecallv1alpha.UpdateNotificationTokenResponse{},
+	}, nil
+}
+
+func (s *Service) GetCallDetails(ctx context.Context, req *connect.Request[homecallv1alpha.GetCallDetailsRequest]) (*connect.Response[homecallv1alpha.GetCallDetailsResponse], error) {
+	deviceId, err := s.verifyDeviceToken(ctx, req)
+	if err != nil {
+		cErr := &connect.Error{}
+		if errors.As(err, &cErr) {
+			return nil, err
+		}
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	callStmt := SELECT(DeviceCallOutbox.JitsiJwt, DeviceCallOutbox.JitsiRoomID).
+		FROM(DeviceCallOutbox.LEFT_JOIN(Device, DeviceCallOutbox.DeviceID.EQ(Device.ID))).
+		WHERE(
+			Device.DeviceID.EQ(String(deviceId)).
+				AND(DeviceCallOutbox.CallID.EQ(String(req.Msg.GetCallId()))).
+				AND(DeviceCallOutbox.CreatedAt.GT(CAST(NOW()).AS_TIMESTAMP().SUB(INTERVALd(time.Hour)))),
+		).LIMIT(1)
+
+	var call struct {
+		model.DeviceCallOutbox
+	}
+	err = callStmt.QueryContext(ctx, s.db, &call)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("call not found"))
+		}
+		return nil, fmt.Errorf("failed to query database: %w", err)
+	}
+
+	return &connect.Response[homecallv1alpha.GetCallDetailsResponse]{
+		Msg: &homecallv1alpha.GetCallDetailsResponse{
+			JitsiJwt:    call.JitsiJwt,
+			JitsiRoomId: call.JitsiRoomID,
+			CallId:      req.Msg.GetCallId(),
+		},
+	}, nil
+}
+
+func (s *Service) verifyDeviceToken(ctx context.Context, req connect.AnyRequest) (string, error) {
 	// Verify bearer token
 	bearerToken := strings.TrimSpace(
 		strings.TrimPrefix(
@@ -107,12 +177,23 @@ func (s *Service) WaitForCall(ctx context.Context, req *connect.Request[homecall
 			"Bearer "),
 	)
 	if bearerToken == "" {
-		return connect.NewError(connect.CodeUnauthenticated, errors.New("missing bearer token"))
+		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("missing bearer token"))
 	}
 
-	deviceId := req.Msg.GetDeviceId()
+	parsedToken, err := jose.ParseSigned(bearerToken)
+	if err != nil {
+		return "", fmt.Errorf("could not parse the token: %w", err)
+	}
+
+	unsafeClaims := jose.Claims{}
+	err = parsedToken.UnsafeClaimsWithoutVerification(&unsafeClaims)
+	if err != nil {
+		return "", fmt.Errorf("could not parse the claims: %w", err)
+	}
+
+	deviceId := unsafeClaims.Subject
 	if deviceId == "" {
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("missing device id"))
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("missing device id"))
 	}
 
 	deviceStmt := SELECT(
@@ -124,72 +205,28 @@ func (s *Service) WaitForCall(ctx context.Context, req *connect.Request[homecall
 	).LIMIT(1)
 
 	var device model.Device
-	err := deviceStmt.QueryContext(ctx, s.db, &device)
+	err = deviceStmt.QueryContext(ctx, s.db, &device)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			return connect.NewError(connect.CodeUnauthenticated, errors.New("invalid device id"))
+			return "", connect.NewError(connect.CodeUnauthenticated, errors.New("invalid device id"))
 		}
-		return fmt.Errorf("failed to query database: %w", err)
+		return "", fmt.Errorf("failed to query database: %w", err)
 
 	}
 
 	if device.PublicKey == nil {
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("device not enrolled"))
+		return "", connect.NewError(connect.CodeFailedPrecondition, errors.New("device not enrolled"))
 	}
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(*device.PublicKey))
 	if err != nil {
-		return fmt.Errorf("failed to parse public key: %w", err)
+		return "", fmt.Errorf("failed to parse public key: %w", err)
 	}
 
 	err = verifyDeviceToken(bearerToken, publicKey, deviceId)
 	if err != nil {
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid token: %w", err))
+		return "", connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid token: %w", err))
 	}
-
-	setLastSeen := func() {
-		now := time.Now()
-		timestamp := Timestamp(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
-		deviceUpdateStmt := Device.UPDATE().SET(
-			Device.LastSeen.SET(timestamp),
-		).WHERE(Device.DeviceID.EQ(String(deviceId)))
-
-		_, err = deviceUpdateStmt.ExecContext(ctx, s.db)
-		if err != nil {
-			s.logger.Error("failed to update last seen", "error", err)
-		}
-	}
-
-	go func() {
-		setLastSeen()
-
-		ticker := time.NewTicker(time.Minute)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				setLastSeen()
-			}
-		}
-	}()
-
-	err = s.broker.SubscribeToCalls(ctx, deviceId, func(call messaging.Call) error {
-		err = stream.Send(&homecallv1alpha.WaitForCallResponse{
-			CallId:      call.ID,
-			JitsiJwt:    call.JitsiJwt,
-			JitsiRoomId: call.JitsiRoomId,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to send call to client: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to calls: %w", err)
-	}
-	return nil
+	return deviceId, nil
 }
 
 func verifyDeviceToken(token string, publicKey *rsa.PublicKey, deviceId string) error {

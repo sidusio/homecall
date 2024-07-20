@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	fm "firebase.google.com/go/v4/messaging"
 	"fmt"
 	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
@@ -17,6 +18,7 @@ import (
 	. "sidus.io/home-call/gen/jetdb/public/table"
 	"sidus.io/home-call/jitsi"
 	"sidus.io/home-call/messaging"
+	"sidus.io/home-call/notifications"
 	"sidus.io/home-call/services/tenantapi"
 	"sidus.io/home-call/util"
 	"time"
@@ -30,22 +32,25 @@ func NewService(
 	jitsiApp *jitsi.App,
 	logger *slog.Logger,
 	tenantService *tenantapi.Service,
+	notificationService notifications.Service,
 ) *Service {
 	return &Service{
-		db:            db,
-		broker:        broker,
-		jitsiApp:      jitsiApp,
-		logger:        logger,
-		tenantService: tenantService,
+		db:                  db,
+		broker:              broker,
+		jitsiApp:            jitsiApp,
+		logger:              logger,
+		tenantService:       tenantService,
+		notificationService: notificationService,
 	}
 }
 
 type Service struct {
-	db            *sql.DB
-	broker        *messaging.Broker
-	jitsiApp      *jitsi.App
-	logger        *slog.Logger
-	tenantService *tenantapi.Service
+	db                  *sql.DB
+	broker              *messaging.Broker
+	jitsiApp            *jitsi.App
+	logger              *slog.Logger
+	tenantService       *tenantapi.Service
+	notificationService notifications.Service
 }
 
 func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecallv1alpha.CreateDeviceRequest]) (*connect.Response[homecallv1alpha.CreateDeviceResponse], error) {
@@ -175,18 +180,22 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*homecallv1al
 	deviceStmt := SELECT(
 		Device.DeviceID,
 		Device.Name,
-		Device.LastSeen,
 		Enrollment.DeviceSettings,
 		Tenant.TenantID,
+		DeviceNotificationToken.UpdatedAt.IS_NOT_NULL().
+			AND(DeviceNotificationToken.UpdatedAt.GT(CAST(NOW()).AS_TIMESTAMP().SUB(INTERVALd(time.Hour)))).
+			AS("Online"),
 	).FROM(
 		Device.
 			LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID)).
-			LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)),
+			LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)).
+			LEFT_JOIN(DeviceNotificationToken, Device.ID.EQ(DeviceNotificationToken.DeviceID)),
 	).WHERE(Device.DeviceID.EQ(String(deviceID)))
 	var device struct {
 		model.Device
 		model.Enrollment
 		model.Tenant
+		Online bool
 	}
 	err := deviceStmt.QueryContext(ctx, s.db, &device)
 	if err != nil {
@@ -199,7 +208,7 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*homecallv1al
 		Id:            device.Device.DeviceID,
 		Name:          device.Device.Name,
 		EnrollmentKey: device.Enrollment.Key,
-		Online:        device.Device.LastSeen != nil && device.Device.LastSeen.After(time.Now().Add(-2*time.Minute)),
+		Online:        device.Online,
 		TenantId:      device.Tenant.TenantID,
 	}, nil
 }
@@ -246,17 +255,20 @@ func (s *Service) ListDevices(ctx context.Context, req *connect.Request[homecall
 
 	devicesStmt := SELECT(
 		Device.DeviceID,
-		Device.Name,
-		Device.LastSeen,
+		Device.Name, DeviceNotificationToken.UpdatedAt.IS_NOT_NULL().
+			AND(DeviceNotificationToken.UpdatedAt.GT(CAST(NOW()).AS_TIMESTAMP().SUB(INTERVALd(time.Hour)))).
+			AS("Online"),
 		Enrollment.Key,
 	).FROM(Device.
 		LEFT_JOIN(Enrollment, Device.ID.EQ(Enrollment.ID)).
-		LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)),
+		LEFT_JOIN(Tenant, Device.TenantID.EQ(Tenant.ID)).
+		LEFT_JOIN(DeviceNotificationToken, Device.ID.EQ(DeviceNotificationToken.DeviceID)),
 	).WHERE(Tenant.TenantID.EQ(String(tenantId)))
 
 	var devices []struct {
 		model.Device
 		model.Enrollment
+		Online bool
 	}
 	err = devicesStmt.QueryContext(ctx, s.db, &devices)
 	if err != nil {
@@ -269,7 +281,7 @@ func (s *Service) ListDevices(ctx context.Context, req *connect.Request[homecall
 			Id:            device.Device.DeviceID,
 			Name:          device.Device.Name,
 			EnrollmentKey: device.Enrollment.Key,
-			Online:        device.Device.LastSeen != nil && device.Device.LastSeen.After(time.Now().Add(-2*time.Minute)),
+			Online:        device.Online,
 		})
 
 	}
@@ -292,6 +304,14 @@ func (s *Service) StartCall(ctx context.Context, req *connect.Request[homecallv1
 		return nil, fmt.Errorf("failed to get device: %w", err)
 	}
 
+	if device.EnrollmentKey != "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("device is not enrolled"))
+	}
+
+	if !device.Online {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("device is offline"))
+	}
+
 	// Create jitsi room
 	jitsiCall, err := s.jitsiApp.NewCall()
 	if err != nil {
@@ -310,22 +330,52 @@ func (s *Service) StartCall(ctx context.Context, req *connect.Request[homecallv1
 		return nil, fmt.Errorf("failed to create device token: %w", err)
 	}
 
-	// Broadcast call
-	call := messaging.Call{
-		DeviceID:    device.GetId(),
-		ID:          uuid.New().String(),
-		JitsiJwt:    deviceToken,
-		JitsiRoomId: jitsiCall.RoomName(),
+	callId := uuid.New().String()
+	// Store call in device outbox
+	insertCallStmt := DeviceCallOutbox.
+		INSERT(
+			DeviceCallOutbox.CallID,
+			DeviceCallOutbox.DeviceID,
+			DeviceCallOutbox.JitsiRoomID,
+			DeviceCallOutbox.JitsiJwt,
+		).
+		VALUES(
+			String(callId),
+			SELECT(Device.ID).FROM(Device).WHERE(Device.DeviceID.EQ(String(device.GetId()))),
+			String(jitsiCall.RoomName()),
+			String(deviceToken),
+		)
+	_, err = insertCallStmt.ExecContext(ctx, s.db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert call: %w", err)
 	}
 
-	err = s.broker.PublishCall(call)
+	tokenRow := model.DeviceNotificationToken{}
+	err = SELECT(DeviceNotificationToken.NotificationToken).
+		FROM(Device.LEFT_JOIN(DeviceNotificationToken, Device.ID.EQ(DeviceNotificationToken.DeviceID))).
+		WHERE(Device.DeviceID.EQ(String(device.GetId()))).LIMIT(1).QueryContext(ctx, s.db, &tokenRow)
 	if err != nil {
-		return nil, fmt.Errorf("failed to publish call: %w", err)
+		return nil, fmt.Errorf("failed to get notification token: %w", err)
+	}
+
+	err = s.notificationService.SendNotification(ctx, &fm.Message{
+		Token: tokenRow.NotificationToken,
+		Data: map[string]string{
+			"callId": callId,
+			"type":   "call",
+		},
+		Notification: &fm.Notification{
+			Title: "Inkommande samtal",
+			Body:  "Du har ett inkommande samtal, klicka här för att svara",
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send notification: %w", err)
 	}
 
 	return &connect.Response[homecallv1alpha.StartCallResponse]{
 		Msg: &homecallv1alpha.StartCallResponse{
-			CallId:      call.ID,
+			CallId:      callId,
 			JitsiJwt:    officeToken,
 			JitsiRoomId: jitsiCall.RoomName(),
 		},

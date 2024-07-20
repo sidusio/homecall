@@ -12,9 +12,21 @@ service DeviceService {
     // This call is only called once per device during the initial setup.
     rpc Enroll(EnrollRequest) returns (EnrollResponse);
 
-    // WaitForCall is called by a device to wait for a call.
-    // This call is long-lived and will return when a call is ready.
-    rpc WaitForCall(WaitForCallRequest) returns (stream WaitForCallResponse);
+    // UpdateNotificationToken is called by a device to update the FCM token.
+    // This token is used to send push notifications to the device.
+    // This should be called whenever the FCM token changes.
+    // It should also be called when the device is first enrolled and every 30 minutes to mark the device as active.
+    //
+    // Call is authenticated using the a jwt token signed with the device's private key.
+    // The subject of the jwt token must be the device ID.
+    //
+    // This call is idempotent.
+    rpc UpdateNotificationToken(UpdateNotificationTokenRequest) returns (UpdateNotificationTokenResponse);
+
+    // GetCall returns a call for the device to join.
+    // Call is authenticated using the a jwt token signed with the device's private key.
+    // The subject of the jwt token must be the device ID.
+    rpc GetCallDetails(GetCallDetailsRequest) returns (GetCallDetailsResponse);
 }
 
 // EnrollRequest is the request to enroll a device.
@@ -39,17 +51,15 @@ message EnrollResponse {
     string name = 3;
 }
 
-// WaitForCallRequest is the request to wait for a call.
-// Call is authenticated using the a jwt token signed with the device's private key.
-// The subject of the jwt token must be the device ID.
+// GetCallDetailsRequest is the request to join a call.
 // Token is passed in the Authorization header as a bearer token.
-message WaitForCallRequest {
-    // The device ID is the unique identifier for the device.
-    string device_id = 1;
+message GetCallDetailsRequest {
+    // The call ID is the unique identifier for the call.
+    string call_id = 1;
 }
 
-// WaitForCallResponse is the response to waiting for a call.
-message WaitForCallResponse {
+// GetCallDetailsResponse is the response to join a call.
+message GetCallDetailsResponse {
     // The room ID is the unique identifier for the jitsi room.
     // Used to join the call.
     string jitsi_room_id = 1;
@@ -58,3 +68,12 @@ message WaitForCallResponse {
     // The call ID is the unique identifier for the call.
     string call_id = 3;
 }
+
+// UpdateNotificationTokenRequest is the request to update the FCM token.
+message UpdateNotificationTokenRequest {
+    // The notification_token is the token used to send push notifications to the device.
+    string notification_token = 1;
+}
+
+// UpdateNotificationTokenResponse is the response to updating the FCM token.
+message UpdateNotificationTokenResponse {}

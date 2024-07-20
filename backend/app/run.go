@@ -16,6 +16,10 @@ import (
 	"sidus.io/home-call/jitsi"
 	"sidus.io/home-call/messaging"
 	"sidus.io/home-call/migrations"
+	"sidus.io/home-call/notifications"
+	"sidus.io/home-call/notifications/directorynotifications"
+	"sidus.io/home-call/notifications/firebasenotifications"
+	"sidus.io/home-call/notifications/lognotifications"
 	"sidus.io/home-call/postgresdb"
 	"sidus.io/home-call/services/auth"
 	"sidus.io/home-call/services/deviceapi"
@@ -81,10 +85,16 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 	}()
 	logger.Info("message broker created")
 
+	// Notifications
+	notificationService, err := setupNotificationService(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to setup notification service: %w", err)
+	}
+
 	// Service layer
 	tenantService := tenantapi.NewService(db, logger.With("component", "tenantapi"), 2)
 	deviceService := deviceapi.NewService(db, broker, logger.With("component", "deviceapi"))
-	officeService := officeapi.NewService(db, broker, jitsiApp, logger.With("component", "officeapi"), tenantService)
+	officeService := officeapi.NewService(db, broker, jitsiApp, logger.With("component", "officeapi"), tenantService, notificationService)
 	logger.Info("service layer created")
 
 	// Auth interceptor
@@ -134,6 +144,28 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 		return fmt.Errorf("application crashed: %w", err)
 	}
 	return nil
+}
+
+func setupNotificationService(cfg Config, logger *slog.Logger) (notifications.Service, error) {
+	switch {
+	case cfg.MockNotificationsDir != "":
+		logger.Info("using mock notifications service", "directory", cfg.MockNotificationsDir)
+		service, err := directorynotifications.NewService(cfg.MockNotificationsDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create mock notifications service: %w", err)
+		}
+		return service, nil
+	case cfg.FirebaseProjectId != "":
+		logger.Info("using firebase notifications service", "project_id", cfg.FirebaseProjectId)
+		service, err := firebasenotifications.NewService(context.Background(), cfg.FirebaseProjectId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create firebase notifications service: %w", err)
+		}
+		return service, nil
+	default:
+		logger.Warn("no notification service configured, notifications will be logged")
+		return lognotifications.NewService(logger), nil
+	}
 }
 
 func setupJitsiApp(cfg Config) (*jitsi.App, error) {

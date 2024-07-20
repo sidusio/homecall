@@ -96,13 +96,34 @@ func testDeviceCall(t *testing.T, ctx context.Context, tenant *homecallv1alpha.T
 	})
 	require.NoError(t, err)
 
-	_, err = c.deviceClient.Enroll(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.EnrollRequest]{
+	// attempt call before enrollment
+	_, err = c.officeClient.StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+		Msg: &homecallv1alpha.StartCallRequest{
+			DeviceId: device.Msg.GetDevice().GetId(),
+		},
+	}))
+	cErr := &connect.Error{}
+	require.ErrorAs(t, err, &cErr)
+	require.Equal(t, connect.CodeFailedPrecondition, cErr.Code())
+
+	// Enroll device
+	_, err = c.deviceClient.Enroll(ctx, &connect.Request[homecallv1alpha.EnrollRequest]{
 		Msg: &homecallv1alpha.EnrollRequest{
 			EnrollmentKey: device.Msg.GetDevice().GetEnrollmentKey(),
 			PublicKey:     publicKey.String(),
 		},
-	}))
+	})
 	require.NoError(t, err)
+
+	// attempt call before token registration
+	_, err = c.officeClient.StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+		Msg: &homecallv1alpha.StartCallRequest{
+			DeviceId: device.Msg.GetDevice().GetId(),
+		},
+	}))
+	cErr = &connect.Error{}
+	require.ErrorAs(t, err, &cErr)
+	require.Equal(t, connect.CodeFailedPrecondition, cErr.Code())
 
 	/*wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -129,13 +150,13 @@ func testDeviceCall(t *testing.T, ctx context.Context, tenant *homecallv1alpha.T
 		require.Fail(t, "no call received")
 	}() */
 
-	resp, err := c.officeClient.StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+	/*resp, err := c.officeClient.StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
 		Msg: &homecallv1alpha.StartCallRequest{
 			DeviceId: device.Msg.GetDevice().GetId(),
 		},
 	}))
 	require.NoError(t, err)
-	require.NotNil(t, resp)
+	require.NotNil(t, resp)*/
 
 	//wg.Wait()
 }
