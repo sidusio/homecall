@@ -8,13 +8,22 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"firebase.google.com/go/v4/messaging"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io/fs"
 	"os"
+	"path"
+	"path/filepath"
 	homecallv1alpha "sidus.io/home-call/gen/connect/homecall/v1alpha"
+	"sidus.io/home-call/notifications/directorynotifications"
 	"sidus.io/home-call/services/auth"
+	"sidus.io/home-call/util"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -22,7 +31,13 @@ func TestMain(m *testing.M) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		app, err := NewTestApp()
+		notificationsDir, err := os.MkdirTemp("", "crudb-mock-notifications")
+		if err != nil {
+			panic(err)
+		}
+		defer os.RemoveAll(notificationsDir)
+
+		app, err := NewTestApp(WithNotificationDir(notificationsDir))
 		if err != nil {
 			panic(err)
 		}
@@ -76,6 +91,15 @@ func TestDeviceCall(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	deviceToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{
+		Subject:   device.Msg.GetDevice().GetId(),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Issuer:    "homecall-device",
+		Audience:  jwt.ClaimStrings{"homecall"},
+	}).SignedString(key)
+	require.NoError(t, err)
+
 	// attempt call before enrollment
 	_, err = globalTestApp.OfficeClient().StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
 		Msg: &homecallv1alpha.StartCallRequest{
@@ -105,40 +129,59 @@ func TestDeviceCall(t *testing.T) {
 	require.ErrorAs(t, err, &cErr)
 	require.Equal(t, connect.CodeFailedPrecondition, cErr.Code())
 
-	/*wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	// Register device token
+	deviceNotificationToken, err := util.RandomString(10)
+	require.NoError(t, err)
 
-		waitResp, err := c.deviceClient.WaitForCall(ctx, &connect.Request[homecallv1alpha.WaitForCallRequest]{
-			Msg: &homecallv1alpha.WaitForCallRequest{
-				DeviceId: device.Msg.GetDevice().GetId(),
-			},
-		})
-		require.NoError(t, err)
-		defer waitResp.Close()
+	_, err = globalTestApp.DeviceClient().UpdateNotificationToken(ctx, auth.WithToken(deviceToken, &connect.Request[homecallv1alpha.UpdateNotificationTokenRequest]{
+		Msg: &homecallv1alpha.UpdateNotificationTokenRequest{
+			NotificationToken: deviceNotificationToken,
+		},
+	}))
+	require.NoError(t, err)
 
-		for waitResp.Receive() {
-			msg := waitResp.Msg()
-			require.NotEmpty(t, msg.GetCallId())
-			// TODO check jwt
-			// TODO check that call details align with device
-			return
-		}
-
-		require.NoError(t, waitResp.Err())
-		require.Fail(t, "no call received")
-	}() */
-
-	/*resp, err := c.officeClient.StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
+	// attempt call after enrollment
+	call, err := globalTestApp.OfficeClient().StartCall(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.StartCallRequest]{
 		Msg: &homecallv1alpha.StartCallRequest{
 			DeviceId: device.Msg.GetDevice().GetId(),
 		},
 	}))
 	require.NoError(t, err)
-	require.NotNil(t, resp)*/
 
-	//wg.Wait()
+	message := &messaging.Message{}
+	err = filepath.Walk(path.Join(globalTestApp.NotificationsDir(), directorynotifications.DevicesDirectory, deviceNotificationToken), func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		if strings.HasSuffix(path, ".json") {
+			content, err := os.ReadFile(path)
+			require.NoError(t, err)
+			err = message.UnmarshalJSON(content)
+			require.NoError(t, err)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "call", message.Data["type"])
+	assert.Equal(t, call.Msg.GetCallId(), message.Data["callId"])
+
+	// Get call details
+	callDetails, err := globalTestApp.DeviceClient().GetCallDetails(ctx, auth.WithToken(deviceToken, &connect.Request[homecallv1alpha.GetCallDetailsRequest]{
+		Msg: &homecallv1alpha.GetCallDetailsRequest{
+			CallId: message.Data["callId"],
+		},
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, call.Msg.GetCallId(), callDetails.Msg.GetCallId())
+	assert.Equal(t, call.Msg.GetJitsiRoomId(), callDetails.Msg.GetJitsiRoomId())
+	assert.NotEqual(t, call.Msg.GetJitsiJwt(), callDetails.Msg.GetJitsiJwt())
+	assert.NotEmpty(t, call.Msg.GetJitsiJwt())
+	assert.NotEmpty(t, callDetails.Msg.GetJitsiJwt())
 }
 
 func TestTenantMemberAdmin(t *testing.T) {

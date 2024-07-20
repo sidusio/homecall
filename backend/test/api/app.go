@@ -16,13 +16,32 @@ import (
 
 type TestApp struct {
 	port     string
+	config   TestAppConfig
 	runError chan error
 	cancel   context.CancelFunc
 	pg       *TestPostgres
 }
 
-func NewTestApp() (*TestApp, error) {
+type TestAppConfig struct {
+	NotificationDir string
+}
+
+type TestAppOption func(config *TestAppConfig)
+
+func WithNotificationDir(dir string) TestAppOption {
+	return func(config *TestAppConfig) {
+		config.NotificationDir = dir
+	}
+}
+
+func NewTestApp(options ...TestAppOption) (*TestApp, error) {
+	config := TestAppConfig{}
+	for _, option := range options {
+		option(&config)
+	}
+
 	return &TestApp{
+		config:   config,
 		runError: make(chan error),
 	}, nil
 }
@@ -42,6 +61,10 @@ func (a *TestApp) DeviceClient() homecallv1alphaconnect.DeviceServiceClient {
 
 func (a *TestApp) TenantClient() homecallv1alphaconnect.TenantServiceClient {
 	return homecallv1alphaconnect.NewTenantServiceClient(http.DefaultClient, a.ApiAddress())
+}
+
+func (a *TestApp) NotificationsDir() string {
+	return a.config.NotificationDir
 }
 
 func (a *TestApp) Start(ctx context.Context) error {
@@ -80,6 +103,7 @@ func (a *TestApp) Start(ctx context.Context) error {
 	cfg.Port = port
 	cfg.AuthDisabled = true
 	cfg.JitsiKeyRaw = dummyPemKey
+	cfg.MockNotificationsDir = a.config.NotificationDir
 
 	a.port = port
 
