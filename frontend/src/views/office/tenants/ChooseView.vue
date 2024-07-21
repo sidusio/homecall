@@ -8,11 +8,15 @@ import { useRouter } from 'vue-router';
 import { useTenantIdStore } from '@/stores/tenantId';
 
 const router = useRouter()
-const { getAccessTokenSilently } = useAuth0();
+const { getAccessTokenSilently, user } = useAuth0();
 const { setTenantId } = useTenantIdStore();
 const tenantsList = ref()
 
 onMounted(async () => {
+  if(!user.value || !user.value.email_verified) {
+    return;
+  }
+
   const token = await getAccessTokenSilently();
   const auth = {
       headers: {

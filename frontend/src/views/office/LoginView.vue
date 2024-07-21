@@ -1,23 +1,48 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import Office from '@/templates/Office.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 
 const { loginWithRedirect } = useAuth0();
+const verified = ref(false);
 
+/**
+ * Redirect to login page.
+ */
 const login = () => {
     loginWithRedirect();
 }
 
+/**
+ * Check if the email is verified.
+ */
+const checkIfVerified = () => {
+    return window.location.search.includes('verified_email=true');
+}
+
+/**
+ * Redirect to signup page.
+ */
 const signup = () => {
     loginWithRedirect({authorizationParams: {
         screen_hint: "signup",
     }});
 }
+
+onMounted(() => {
+    if(checkIfVerified()) {
+        verified.value = true;
+    }
+})
 </script>
 
 <template>
     <Office>
         <main class="login">
+            <div class="login__notif" v-if="verified">
+                Din e-post är verifierad! Nu kan du logga in.
+            </div>
+
             <div class="login__left">
                 <h1 class="login__title">
                     Logga in / Skapa konto
@@ -57,6 +82,18 @@ const signup = () => {
     height: $viewport-height;
     width: 100vw;
     display: flex;
+
+    &__notif {
+        position: absolute;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: $color-primary;
+        color: white;
+        padding: .5rem 1.5rem;
+        border-radius: 30px;
+        animation: fadeIn 1s ease-in-out;
+    }
 
     &__left {
         width: 60%;
@@ -125,6 +162,16 @@ const signup = () => {
                 color: white;
             }
         }
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
     }
 }
 </style>

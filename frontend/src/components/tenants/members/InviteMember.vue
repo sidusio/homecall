@@ -34,7 +34,7 @@ const addMember = async () => {
         }
     }
 
-    await tenantClient.createTenantMember({
+    await tenantClient.createTenantInvite({
         tenantId: tenantIdStore.tenantId,
         email: invitedEmail.value,
         role: invitedRole.value

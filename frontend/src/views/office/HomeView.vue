@@ -2,7 +2,7 @@
 import '@event-calendar/core/index.css';
 import Office from '@/templates/Office.vue';
 import { officeClient } from '@/clients';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
 import Calendar from '@/components/Calendar.vue';
@@ -225,7 +225,7 @@ onMounted(async () => {
     justify-content: space-between;
     width: 350px;
     background-color: white;
-    box-shadow: 0 0 7px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 7px rgba(0, 0, 0, 0.15);
   }
 
   &__device-header {

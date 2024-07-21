@@ -14,20 +14,14 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 /* import specific icons */
-import { faChevronDown, faChevronUp, faChevronRight, faPlus, faGear, faPen, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faChevronDown, faChevronUp, faChevronRight, faPlus, faGear, faPen, faTrash, faEnvelope, faCheck, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons'
 
 /* add icons to the library */
-library.add(faChevronDown)
-library.add(faChevronUp)
-library.add(faChevronRight)
-library.add(faPlus)
-library.add(faGear)
-library.add(faPen)
-library.add(faTrash)
+library.add([faGear, faPlus, faChevronRight, faChevronUp, faChevronDown, faPen, faTrash, faEnvelope, faCheck, faExclamationTriangle])
 
 const app = createApp(App)
 
-Sentry.init({
+/*Sentry.init({
     app,
     dsn: "https://9639d3406a54364151d90077a1a2020b@o4507538136170496.ingest.de.sentry.io/4507538144755792",
     integrations: [
@@ -61,7 +55,7 @@ Sentry.init({
     // Session Replay
     replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
     replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
-});
+});*/
 
 app.use(
     createAuth0({

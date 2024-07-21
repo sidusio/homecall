@@ -4,13 +4,11 @@ import { Role } from "./../../../../gen/connect/homecall/v1alpha/tenant_service_
 import { tenantClient } from '@/clients';
 import { useAuth0 } from '@auth0/auth0-vue';
 import Select from '@/templates/Select.vue';
-import { useTenantIdStore } from '@/stores/tenantId';
 
 const emit = defineEmits(['edit']);
-const props = defineProps(['email', 'role']);
+const props = defineProps(['id', 'role']);
 
 const { getAccessTokenSilently } = useAuth0();
-const tenantIdStore = useTenantIdStore();
 const open = ref(false);
 const role = ref<Role>(props.role);
 
@@ -26,8 +24,7 @@ const editMember = async () => {
     }
 
     await tenantClient.updateTenantMember({
-        tenantId: tenantIdStore.tenantId,
-        email: props.email,
+        id: props.id,
         role: role.value
     }, auth)
 
@@ -59,17 +56,6 @@ const toggle = () => {
         </h2>
 
         <div class="edit-member__column">
-            <div class="input-container">
-                <label class="readonly" for="email">E-post</label>
-                <input
-                    class="readonly"
-                    type="text"
-                    id="email"
-                    :value="email"
-                    readonly
-                />
-            </div>
-
             <div class="input-container">
                 <label for="role">
                     Roll

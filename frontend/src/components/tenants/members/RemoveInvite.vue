@@ -30,9 +30,7 @@ const removeMember = async (id: string) => {
         }
     }
 
-    console.log(id)
-
-    await tenantClient.removeTenantMember({
+    await tenantClient.removeTenantInvite({
         id: id
     }, auth)
 
@@ -54,7 +52,7 @@ const removeMember = async (id: string) => {
         <h2>Är du helt säker?</h2>
 
         <p class="modal__text">
-            Om du tar bort medlemmen kommer all data att raderas och det går inte att ångra.
+            Om du tar bort inbjudan till denna medlem kommer all associerad data att raderas och det går inte att ångra.
         </p>
 
         <div class="modal__btns">

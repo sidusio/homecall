@@ -4,5 +4,6 @@
 
 <template>
     <GlobalHeader />
+
     <slot></slot>
 </template>

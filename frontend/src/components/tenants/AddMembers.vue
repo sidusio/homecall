@@ -6,11 +6,13 @@ import { useAuth0 } from '@auth0/auth0-vue';
 import EditMember from '@/components/tenants/members/EditMember.vue';
 import InviteMember from '@/components/tenants/members/InviteMember.vue';
 import RemoveMember from '@/components/tenants/members/RemoveMember.vue';
+import RemoveInvite from '@/components/tenants/members/RemoveInvite.vue';
 import { Role } from "./../../../gen/connect/homecall/v1alpha/tenant_service_pb";
 
 const { getAccessTokenSilently, user } = useAuth0();
 const tenantIdStore = useTenantIdStore();
 const allMembers = ref<any[]>([]);
+const allInvites = ref<any[]>([]);
 
 /**
  * Subscribe to tenantId changes.
@@ -19,12 +21,7 @@ useTenantIdStore().$subscribe(() => {
     getAllMembers()
 })
 
-/**
- * Get all members of the tenant.
- */
-const getAllMembers = async () => {
-    allMembers.value = []
-
+const auth = async () => {
     const token = await getAccessTokenSilently();
     const auth = {
         method: 'GET',
@@ -34,9 +31,28 @@ const getAllMembers = async () => {
         }
     }
 
+    return auth;
+}
+
+const getAllInvites = async () => {
+    allInvites.value = []
+
+    const { tenantInvites } = await tenantClient.listTenantInvites({
+        tenantId: tenantIdStore.tenantId
+    }, await auth())
+
+    allInvites.value.push(...tenantInvites)
+}
+
+/**
+ * Get all members of the tenant.
+ */
+const getAllMembers = async () => {
+    allMembers.value = []
+
     const { tenantMembers } = await tenantClient.listTenantMembers({
         tenantId: tenantIdStore.tenantId
-    }, auth)
+    }, await auth())
 
     allMembers.value.push(...tenantMembers)
 }
@@ -59,8 +75,9 @@ const setRole = (role: Role) => {
     }
 }
 
-onMounted(() => {
+onMounted(async () => {
     getAllMembers()
+    getAllInvites()
 })
 </script>
 
@@ -69,13 +86,13 @@ onMounted(() => {
     <div class="add-members__header">
         <h2>Medlemmar</h2>
 
-        <InviteMember @invite="getAllMembers" />
+        <InviteMember @invite="getAllInvites()" />
     </div>
 
-    <div>
+    <div class="add-members__members">
         <article v-for="member in allMembers" class="add-members__member">
             <p class="add-members__member__info">
-                <span>{{ member.email }}</span>
+                <span>{{ member.displayName }} ({{ member.verifiedEmail }})</span>
                 <span class="add-members__member__role">-</span>
                 <span class="add-members__member__role">{{ setRole(member.role) }}</span>
             </p>
@@ -84,9 +101,30 @@ onMounted(() => {
                 v-if="user && user.email !== member.email"
                 class="add-members__member__btns"
             >
-                <EditMember :email="member.email" :role="member.role" @edit="getAllMembers" />
+                <EditMember :id="member.id" :role="member.role" @edit="getAllMembers" />
 
-                <RemoveMember :email="member.email" @remove="getAllMembers" />
+                <RemoveMember :id="member.id" @remove="getAllMembers" />
+            </div>
+        </article>
+
+        <h3>
+            Inbjudningar
+        </h3>
+
+        <p class="add-members__no-invites" v-if="allInvites.length === 0">
+            <font-awesome-icon class="add-members__no-invites__icon" icon="fa-solid fa-envelope" />
+            Inga inbjudningar.
+        </p>
+
+        <article v-for="invite in allInvites" class="add-members__member" v-else>
+            <p class="add-members__member__info">
+                <span>{{ invite.email }}</span>
+                <span class="add-members__member__role">-</span>
+                <span class="add-members__member__role">{{ setRole(invite.role) }}</span>
+            </p>
+
+            <div class="add-members__member__btns">
+                <RemoveInvite :id="invite.id" @remove="getAllInvites" />
             </div>
         </article>
     </div>
@@ -94,6 +132,8 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
+@import "@/assets/styles/variables.scss";
+
 .add-members {
     &__header {
         display: flex;
@@ -102,15 +142,32 @@ onMounted(() => {
         margin-bottom: 1rem;
     }
 
+    &__members {
+        h3 {
+            margin: 3rem 0 1rem 0;
+            font-weight: 500;
+        }
+    }
+
+    &__no-invites {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .5rem;
+        text-align: center;
+        font-size: 1.2rem;
+        color: $color-primary;
+
+        &__icon {
+            font-size: 2rem;
+        }
+    }
+
     &__member {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 1rem 0;
-
-        h3 {
-            margin: 0;
-        }
+        padding: 0 0 1rem 0;
 
         &__role {
             color: #7e7e7e;
