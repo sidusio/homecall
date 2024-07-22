@@ -240,6 +240,7 @@ func TestTenantMemberAdmin(t *testing.T) {
 			Id: memberTenantMember.GetId(),
 		},
 	}))
+	require.Error(t, err)
 
 	// member should not be able to remove or update members
 	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(memberUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
@@ -253,6 +254,7 @@ func TestTenantMemberAdmin(t *testing.T) {
 			Id: adminTenantMember.GetId(),
 		},
 	}))
+	require.Error(t, err)
 
 	// admin should be able to update and remove members
 	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
@@ -267,6 +269,7 @@ func TestTenantMemberAdmin(t *testing.T) {
 			Id: memberTenantMember.GetId(),
 		},
 	}))
+	require.NoError(t, err)
 
 	// admin should not be able to update or remove self
 	_, err = globalTestApp.TenantClient().UpdateTenantMember(ctx, auth.WithDummyToken(adminUser, &connect.Request[homecallv1alpha.UpdateTenantMemberRequest]{
@@ -280,6 +283,7 @@ func TestTenantMemberAdmin(t *testing.T) {
 			Id: adminTenantMember.GetId(),
 		},
 	}))
+	require.Error(t, err)
 }
 
 func TestTenantMembersAdd(t *testing.T) {
