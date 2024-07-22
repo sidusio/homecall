@@ -20,8 +20,13 @@ func main() {
 		cleanup()
 	}(ctx, cleanup)
 
+	cfgPrefix := appName
+	if os.Getenv("HOMECALL_NO_ENV_PREFIX") != "false" {
+		cfgPrefix = ""
+	}
+
 	var cfg app.Config
-	err := envconfig.Process(appName, &cfg)
+	err := envconfig.Process(cfgPrefix, &cfg)
 	if err != nil {
 		slog.Error("failed to process env vars", "error", err)
 		os.Exit(1)

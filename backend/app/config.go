@@ -1,11 +1,13 @@
 package app
 
 type Config struct {
-	DBHost     string `envconfig:"DB_HOST" default:"localhost"`
-	DBPort     string `envconfig:"DB_PORT" default:"8036"`
-	DBUser     string `envconfig:"DB_USER" default:"homecall"`
-	DBPassword string `envconfig:"DB_PASSWORD" default:"supersecret"`
-	DBName     string `envconfig:"DB_NAME" default:"homecall"`
+	DBHost                   string `envconfig:"DB_HOST" default:"localhost"`
+	DBPort                   string `envconfig:"DB_PORT" default:"8036"`
+	DBUser                   string `envconfig:"DB_USER" default:"homecall"`
+	DBPassword               string `envconfig:"DB_PASSWORD" default:"supersecret"`
+	DBName                   string `envconfig:"DB_NAME" default:"homecall"`
+	DBRole                   string `envconfig:"DB_ROLE" default:""`
+	DBInstanceConnectionName string `envconfig:"DB_INSTANCE_CONNECTION_NAME" required:"false"`
 
 	Port string `envconfig:"PORT" default:"8080"`
 
@@ -21,7 +23,7 @@ type Config struct {
 	AuthIssuer   string `envconfig:"AUTH_ISSUER" default:"https://homecall.eu.auth0.com/"`
 	AuthAudience string `envconfig:"AUTH_AUDIENCE" default:"https://office-api.homecall.sidus.io"`
 
-	// Firebase
+	// Notifications
 	FirebaseProjectId    string `envconfig:"FIREBASE_PROJECT_ID" required:"false"`
 	MockNotificationsDir string `envconfig:"MOCK_NOTIFICATIONS_DIR" required:"false"`
 }

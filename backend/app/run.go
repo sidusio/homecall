@@ -3,6 +3,7 @@ package app
 import (
 	"connectrpc.com/connect"
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/net/http2"
@@ -30,14 +31,28 @@ import (
 )
 
 func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
+	logger.Info("starting application")
 	// Database
-	db, err := postgresdb.NewDirectConnection(ctx, postgresdb.DirectConfig{
-		Hostname: cfg.DBHost,
-		Port:     cfg.DBPort,
-		UserName: cfg.DBUser,
-		Password: cfg.DBPassword,
-		Database: cfg.DBName,
-	}, logger)
+	var err error
+	var db *sql.DB
+	if cfg.DBInstanceConnectionName != "" {
+		db, err = postgresdb.NewCloudSQLConnection(ctx, postgresdb.CloudSQLConfig{
+			InstanceName:       cfg.DBInstanceConnectionName,
+			AutoDetectUserName: true,
+			DatabaseName:       cfg.DBName,
+			UsePrivateIP:       true,
+			Role:               cfg.DBRole,
+		}, logger.With("component", "db"))
+	} else {
+		db, err = postgresdb.NewDirectConnection(ctx, postgresdb.DirectConfig{
+			Hostname: cfg.DBHost,
+			Port:     cfg.DBPort,
+			UserName: cfg.DBUser,
+			Password: cfg.DBPassword,
+			Database: cfg.DBName,
+			Role:     cfg.DBRole,
+		}, logger.With("component", "db"))
+	}
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -113,6 +128,7 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 		return fmt.Errorf("failed to setup http server: %w", err)
 	}
 
+	logger.Info("starting main lifecycle")
 	// Error group for application main lifecycle
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -124,7 +140,7 @@ func Run(ctx context.Context, logger *slog.Logger, cfg Config) error {
 		return nil
 	})
 	<-broker.Started()
-	logger.Debug("broker started")
+	logger.Info("broker started")
 
 	eg.Go(func() error {
 		logger.Info("listening on port", "port", cfg.Port)
@@ -213,6 +229,16 @@ func setupHttpServer(
 		tenantService,
 		connect.WithInterceptors(officeInterceptors...),
 	))
+
+	// TODO: Grpc health checks
+	// Readiness probe
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("ok"))
+		if err != nil {
+			logger.Error("failed to write response", "error", err)
+		}
+	})
 
 	server := &http.Server{
 		Handler: http.MaxBytesHandler(h2c.NewHandler(mux, &http2.Server{}), 1<<20 /* 1mb */),

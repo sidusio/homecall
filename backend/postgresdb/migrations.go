@@ -50,13 +50,13 @@ type MigrationConfig struct {
 }
 
 func (m *Migrator) Run(ctx context.Context) error {
-	migrationsSchema := "internal_state"
+	migrationsSchema := "public"
 
-	m.logger.InfoContext(ctx, "ensure internal_state schema")
+	/*m.logger.InfoContext(ctx, "ensure internal_state schema")
 	_, err := m.db.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", migrationsSchema))
 	if err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
-	}
+	}*/
 
 	m.logger.InfoContext(ctx, "checking database schema")
 	driver, err := postgres.WithInstance(m.db, &postgres.Config{
