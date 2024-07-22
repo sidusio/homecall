@@ -368,6 +368,18 @@ func (s *Service) StartCall(ctx context.Context, req *connect.Request[homecallv1
 			Title: "Inkommande samtal",
 			Body:  "Du har ett inkommande samtal, klicka här för att svara",
 		},
+		Android: &fm.AndroidConfig{
+			// Required for background/quit data-only messages on Android
+			Priority: "high",
+		},
+		APNS: &fm.APNSConfig{
+			Payload: &fm.APNSPayload{
+				Aps: &fm.Aps{
+					// Required for background/quit data-only messages on iOS
+					ContentAvailable: true,
+				},
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send notification: %w", err)
