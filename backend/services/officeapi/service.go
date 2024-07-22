@@ -72,44 +72,31 @@ func (s *Service) CreateDevice(ctx context.Context, req *connect.Request[homecal
 		return nil, fmt.Errorf("failed to generate enrollment key: %w", err)
 	}
 
-	// Setup transaction
-	var txOk bool
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer func() {
-		if !txOk {
-			err := tx.Rollback()
-			s.logger.Error("failed to rollback transaction", "error", err)
+	err = util.WithTransaction(s.db, func(tx util.DB) error {
+		// Insert device
+		insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name, Device.TenantID).VALUES(
+			deviceId,
+			req.Msg.GetName(),
+			SELECT(Tenant.ID).FROM(Tenant).WHERE(Tenant.TenantID.EQ(String(req.Msg.GetTenantId()))).LIMIT(1),
+		)
+		_, err = insertDeviceStmt.ExecContext(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("failed to insert device: %w", err)
 		}
-	}()
 
-	// Insert device
-	insertDeviceStmt := Device.INSERT(Device.DeviceID, Device.Name, Device.TenantID).VALUES(
-		deviceId,
-		req.Msg.GetName(),
-		SELECT(Tenant.ID).FROM(Tenant).WHERE(Tenant.TenantID.EQ(String(req.Msg.GetTenantId()))).LIMIT(1),
-	)
-	_, err = insertDeviceStmt.ExecContext(ctx, tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to insert device: %w", err)
-	}
+		// Insert enrollment
+		insertEnrollmentStmt := Enrollment.INSERT(Enrollment.ID, Enrollment.Key, Enrollment.DeviceSettings).QUERY(
+			SELECT(Device.ID, String(enrollmentKey), Json(string(deviceSettings))).FROM(Device).WHERE(Device.DeviceID.EQ(String(deviceId))))
+		_, err = insertEnrollmentStmt.ExecContext(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("failed to insert enrollment: %w", err)
+		}
 
-	// Insert enrollment
-	insertEnrollmentStmt := Enrollment.INSERT(Enrollment.ID, Enrollment.Key, Enrollment.DeviceSettings).QUERY(
-		SELECT(Device.ID, String(enrollmentKey), Json(string(deviceSettings))).FROM(Device).WHERE(Device.DeviceID.EQ(String(deviceId))))
-	_, err = insertEnrollmentStmt.ExecContext(ctx, tx)
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert enrollment: %w", err)
+		return nil, err
 	}
-
-	// Commit transaction
-	err = tx.Commit()
-	if err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-	txOk = true
 
 	return &connect.Response[homecallv1alpha.CreateDeviceResponse]{
 		Msg: &homecallv1alpha.CreateDeviceResponse{
@@ -224,6 +211,10 @@ func (s *Service) WaitForEnrollment(ctx context.Context, req *connect.Request[ho
 		return fmt.Errorf("failed to get device: %w", err)
 	}
 
+	if device.EnrollmentKey == "" {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("device is already enrolled"))
+	}
+
 	err = s.broker.SubscribeToEnrollment(ctx, device.GetId(), func() error {
 		device, err := s.getDevice(ctx, device.GetId())
 		if err != nil {
@@ -331,58 +322,65 @@ func (s *Service) StartCall(ctx context.Context, req *connect.Request[homecallv1
 	}
 
 	callId := uuid.New().String()
-	// Store call in device outbox
-	insertCallStmt := DeviceCallOutbox.
-		INSERT(
-			DeviceCallOutbox.CallID,
-			DeviceCallOutbox.DeviceID,
-			DeviceCallOutbox.JitsiRoomID,
-			DeviceCallOutbox.JitsiJwt,
-		).
-		VALUES(
-			String(callId),
-			SELECT(Device.ID).FROM(Device).WHERE(Device.DeviceID.EQ(String(device.GetId()))),
-			String(jitsiCall.RoomName()),
-			String(deviceToken),
-		)
-	_, err = insertCallStmt.ExecContext(ctx, s.db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to insert call: %w", err)
-	}
 
-	tokenRow := model.DeviceNotificationToken{}
-	err = SELECT(DeviceNotificationToken.NotificationToken).
-		FROM(Device.LEFT_JOIN(DeviceNotificationToken, Device.ID.EQ(DeviceNotificationToken.DeviceID))).
-		WHERE(Device.DeviceID.EQ(String(device.GetId()))).LIMIT(1).QueryContext(ctx, s.db, &tokenRow)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get notification token: %w", err)
-	}
+	err = util.WithTransaction(s.db, func(db util.DB) error {
+		// Store call in device outbox
+		insertCallStmt := DeviceCallOutbox.
+			INSERT(
+				DeviceCallOutbox.CallID,
+				DeviceCallOutbox.DeviceID,
+				DeviceCallOutbox.JitsiRoomID,
+				DeviceCallOutbox.JitsiJwt,
+			).
+			VALUES(
+				String(callId),
+				SELECT(Device.ID).FROM(Device).WHERE(Device.DeviceID.EQ(String(device.GetId()))),
+				String(jitsiCall.RoomName()),
+				String(deviceToken),
+			)
+		_, err = insertCallStmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to insert call: %w", err)
+		}
 
-	err = s.notificationService.SendNotification(ctx, &fm.Message{
-		Token: tokenRow.NotificationToken,
-		Data: map[string]string{
-			"callId": callId,
-			"type":   "call",
-		},
-		Notification: &fm.Notification{
-			Title: "Inkommande samtal",
-			Body:  "Du har ett inkommande samtal, klicka här för att svara",
-		},
-		Android: &fm.AndroidConfig{
-			// Required for background/quit data-only messages on Android
-			Priority: "high",
-		},
-		APNS: &fm.APNSConfig{
-			Payload: &fm.APNSPayload{
-				Aps: &fm.Aps{
-					// Required for background/quit data-only messages on iOS
-					ContentAvailable: true,
+		tokenRow := model.DeviceNotificationToken{}
+		err = SELECT(DeviceNotificationToken.NotificationToken).
+			FROM(Device.LEFT_JOIN(DeviceNotificationToken, Device.ID.EQ(DeviceNotificationToken.DeviceID))).
+			WHERE(Device.DeviceID.EQ(String(device.GetId()))).LIMIT(1).QueryContext(ctx, s.db, &tokenRow)
+		if err != nil {
+			return fmt.Errorf("failed to get notification token: %w", err)
+		}
+
+		err = s.notificationService.SendNotification(ctx, &fm.Message{
+			Token: tokenRow.NotificationToken,
+			Data: map[string]string{
+				"callId": callId,
+				"type":   "call",
+			},
+			Notification: &fm.Notification{
+				Title: "Inkommande samtal",
+				Body:  "Du har ett inkommande samtal, klicka här för att svara",
+			},
+			Android: &fm.AndroidConfig{
+				// Required for background/quit data-only messages on Android
+				Priority: "high",
+			},
+			APNS: &fm.APNSConfig{
+				Payload: &fm.APNSPayload{
+					Aps: &fm.Aps{
+						// Required for background/quit data-only messages on iOS
+						ContentAvailable: true,
+					},
 				},
 			},
-		},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to send notification: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to send notification: %w", err)
+		return nil, err
 	}
 
 	return &connect.Response[homecallv1alpha.StartCallResponse]{

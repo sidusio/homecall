@@ -18,6 +18,7 @@ import (
 	"sidus.io/home-call/gen/jetdb/public/model"
 	. "sidus.io/home-call/gen/jetdb/public/table"
 	"sidus.io/home-call/messaging"
+	"sidus.io/home-call/util"
 	"strings"
 	"time"
 )
@@ -57,38 +58,46 @@ func (s *Service) Enroll(ctx context.Context, req *connect.Request[homecallv1alp
 		model.Enrollment
 		model.Device
 	}
-	err := enrollmentStmt.QueryContext(ctx, s.db, &enrollment)
-	if err != nil {
-		if errors.Is(err, qrm.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid enrollment key"))
-		}
-		return nil, fmt.Errorf("failed to query database: %w", err)
-	}
-
 	var deviceSettings homecallv1alpha.DeviceSettings
-	err = protojson.Unmarshal([]byte(enrollment.DeviceSettings), &deviceSettings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal device settings: %w", err)
-	}
 
-	deviceUpdateStmt := Device.UPDATE().SET(
-		Device.PublicKey.SET(String(req.Msg.GetPublicKey())),
-	).WHERE(Device.ID.EQ(Int32(enrollment.Device.ID)))
+	err := util.WithTransaction(s.db, func(db util.DB) error {
+		err := enrollmentStmt.QueryContext(ctx, s.db, &enrollment)
+		if err != nil {
+			if errors.Is(err, qrm.ErrNoRows) {
+				return connect.NewError(connect.CodeUnauthenticated, errors.New("invalid enrollment key"))
+			}
+			return fmt.Errorf("failed to query database: %w", err)
+		}
 
-	_, err = deviceUpdateStmt.ExecContext(ctx, s.db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to insert device: %w", err)
-	}
+		err = protojson.Unmarshal([]byte(enrollment.DeviceSettings), &deviceSettings)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal device settings: %w", err)
+		}
 
-	enrollmentDeleteStmt := Enrollment.DELETE().WHERE(Enrollment.ID.EQ(Int32(enrollment.Enrollment.ID)))
-	_, err = enrollmentDeleteStmt.ExecContext(ctx, s.db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to delete enrollment: %w", err)
-	}
+		deviceUpdateStmt := Device.UPDATE().SET(
+			Device.PublicKey.SET(String(req.Msg.GetPublicKey())),
+		).WHERE(Device.ID.EQ(Int32(enrollment.Device.ID)))
 
-	err = s.broker.PublishEnrollment(enrollment.DeviceID)
+		_, err = deviceUpdateStmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to insert device: %w", err)
+		}
+
+		enrollmentDeleteStmt := Enrollment.DELETE().WHERE(Enrollment.ID.EQ(Int32(enrollment.Enrollment.ID)))
+		_, err = enrollmentDeleteStmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to delete enrollment: %w", err)
+		}
+
+		err = s.broker.PublishEnrollment(enrollment.DeviceID)
+		if err != nil {
+			return fmt.Errorf("failed to publish enrollment: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to publish enrollment: %w", err)
+		return nil, err
 	}
 
 	return &connect.Response[homecallv1alpha.EnrollResponse]{

@@ -55,41 +55,46 @@ func (s *Service) CreateTenant(ctx context.Context, req *connect.Request[homecal
 
 	createdAt := time.Now()
 
-	// TODO: Transactions
+	err = util.WithTransaction(s.db, func(db util.DB) error {
+		// Insert tenant
+		stmt := Tenant.INSERT(Tenant.TenantID, Tenant.Name, Tenant.MaxDevices, Tenant.CreatedAt).
+			MODEL(model.Tenant{
+				TenantID:   tenantID,
+				Name:       req.Msg.GetName(),
+				MaxDevices: int32(s.defaultDeviceLimit),
+				CreatedAt:  createdAt,
+			})
+		_, err = stmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to create tenant: %w", err)
+		}
 
-	// Insert tenant
-	stmt := Tenant.INSERT(Tenant.TenantID, Tenant.Name, Tenant.MaxDevices, Tenant.CreatedAt).
-		MODEL(model.Tenant{
-			TenantID:   tenantID,
-			Name:       req.Msg.GetName(),
-			MaxDevices: int32(s.defaultDeviceLimit),
-			CreatedAt:  createdAt,
-		})
-	_, err = stmt.ExecContext(ctx, s.db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create tenant: %w", err)
-	}
+		memberId, err := util.RandomString(16)
+		if err != nil {
+			return fmt.Errorf("failed to generate member id: %w", err)
+		}
 
-	memberId, err := util.RandomString(16)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate member id: %w", err)
-	}
+		// Insert user tenant
+		stmt = UserTenant.INSERT(
+			UserTenant.MemberID,
+			UserTenant.UserID,
+			UserTenant.TenantID,
+			UserTenant.Role,
+		).VALUES(
+			String(memberId),
+			SELECT(User.ID).FROM(User).WHERE(User.IdpUserID.EQ(String(authDetails.Subject))).LIMIT(1),
+			SELECT(Tenant.ID).FROM(Tenant).WHERE(Tenant.TenantID.EQ(String(tenantID))).LIMIT(1),
+			enum.TenantRole.Admin,
+		)
+		_, err = stmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to create user tenant: %w", err)
+		}
 
-	// Insert user tenant
-	stmt = UserTenant.INSERT(
-		UserTenant.MemberID,
-		UserTenant.UserID,
-		UserTenant.TenantID,
-		UserTenant.Role,
-	).VALUES(
-		String(memberId),
-		SELECT(User.ID).FROM(User).WHERE(User.IdpUserID.EQ(String(authDetails.Subject))).LIMIT(1),
-		SELECT(Tenant.ID).FROM(Tenant).WHERE(Tenant.TenantID.EQ(String(tenantID))).LIMIT(1),
-		enum.TenantRole.Admin,
-	)
-	_, err = stmt.ExecContext(ctx, s.db)
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user tenant: %w", err)
+		return nil, err
 	}
 
 	return &connect.Response[homecallv1alpha.CreateTenantResponse]{
@@ -330,28 +335,35 @@ func (s *Service) AcceptTenantInvite(ctx context.Context, req *connect.Request[h
 
 	}
 
-	// Insert user tenant
-	stmt := UserTenant.INSERT(
-		UserTenant.MemberID,
-		UserTenant.UserID,
-		UserTenant.TenantID,
-		UserTenant.Role,
-	).VALUES(
-		String(memberId),
-		SELECT(User.ID).FROM(User).WHERE(User.IdpUserID.EQ(String(authDetails.Subject))).LIMIT(1),
-		SELECT(TenantInvite.TenantID).FROM(TenantInvite).WHERE(TenantInvite.InviteID.EQ(String(req.Msg.GetId()))).LIMIT(1),
-		SELECT(TenantInvite.Role).FROM(TenantInvite).WHERE(TenantInvite.InviteID.EQ(String(req.Msg.GetId()))).LIMIT(1),
-	)
-	_, err = stmt.ExecContext(ctx, s.db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user tenant: %w", err)
-	}
+	err = util.WithTransaction(s.db, func(db util.DB) error {
+		// Insert user tenant
+		stmt := UserTenant.INSERT(
+			UserTenant.MemberID,
+			UserTenant.UserID,
+			UserTenant.TenantID,
+			UserTenant.Role,
+		).VALUES(
+			String(memberId),
+			SELECT(User.ID).FROM(User).WHERE(User.IdpUserID.EQ(String(authDetails.Subject))).LIMIT(1),
+			SELECT(TenantInvite.TenantID).FROM(TenantInvite).WHERE(TenantInvite.InviteID.EQ(String(req.Msg.GetId()))).LIMIT(1),
+			SELECT(TenantInvite.Role).FROM(TenantInvite).WHERE(TenantInvite.InviteID.EQ(String(req.Msg.GetId()))).LIMIT(1),
+		)
+		_, err = stmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to create user tenant: %w", err)
+		}
 
-	// Remove the invite
-	delStmt := TenantInvite.DELETE().WHERE(TenantInvite.InviteID.EQ(String(req.Msg.GetId())))
-	_, err = delStmt.ExecContext(ctx, s.db)
+		// Remove the invite
+		delStmt := TenantInvite.DELETE().WHERE(TenantInvite.InviteID.EQ(String(req.Msg.GetId())))
+		_, err = delStmt.ExecContext(ctx, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to remove tenant invite: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to remove tenant invite: %w", err)
+		return nil, err
 	}
 
 	return &connect.Response[homecallv1alpha.AcceptTenantInviteResponse]{
