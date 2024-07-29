@@ -14,8 +14,11 @@ services:
       HOMECALL_JITSI_APP_ID: ${HOMECALL_JITSI_APP_ID}
       HOMECALL_JITSI_KEY_ID: ${HOMECALL_JITSI_KEY_ID}
       HOMECALL_JITSI_KEY_FILE: jitsi_key.pem
+      HOMECALL_FIREBASE_PROJECT_ID: ${HOMECALL_FIREBASE_PROJECT_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: /root/firebase.json
     volumes:
       - ./jitsi_key.pem:/root/jitsi_key.pem
+      - ./firebase.json:/root/firebase.json
     depends_on:
         - db
     develop:

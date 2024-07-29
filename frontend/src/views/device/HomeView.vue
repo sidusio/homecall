@@ -92,46 +92,48 @@ watch(activeCall, async () => {
   });
 })
 
-/*
-* Wait for a call to come in.
-*/
-const waitForCall = async (): Promise<Call> => {
-  const token = localStorage.getItem('token')
-  // @ts-ignore - DeviceId is set in injected JS.
-  const deviceId = window.deviceData.deviceId
-
-  const abort = new AbortController()
-
-  const resultStream = deviceClient.waitForCall({
-    deviceId: deviceId
-  }, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    },
-    signal: abort.signal
-  })
-
-  // Handle streams.
-  for await (const res of resultStream) {
-    abort.abort()
-    return res
-  }
-
-  console.log('No call, retrying...')
-  return waitForCall()
+interface CallData {
+  type: string;
+  callId: string;
 }
 
-// OnMounted, start to wait for call.
+const pickupCall = async (data: CallData) => {
+  try {
+      const token = localStorage.getItem('token')
+
+      const abort = new AbortController()
+
+      const resultStream = await deviceClient.getCallDetails({
+        callId: data.callId
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        signal: abort.signal
+      })
+
+      /**
+       * TODO: Unsure if abort should be used.
+      for await (const res of resultStream) {
+        abort.abort()
+        return res
+      }
+      */
+
+      return resultStream
+    } catch (e) {
+      console.error(e)
+    }
+}
+
 onMounted(async () => {
   document.querySelector('body')?.classList.add('remove-feedback')
 
-  while(true) {
-    try {
-      incomingCall.value = await waitForCall()
-    } catch (e) {
-      console.error('error: ' + e)
-    }
-  }
+  // Listen to fcm event.
+  window.addEventListener('fcm', async (event) => {
+    // @ts-ignore - Data is set in the injected JS.
+    incomingCall.value = await pickupCall(event.detail.data) || null
+  })
 })
 </script>
 

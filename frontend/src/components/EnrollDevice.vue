@@ -22,7 +22,15 @@ const qrcode = computed(() => {
         deviceId: props.enrollment.deviceId,
         enrollmentKey: props.enrollment.enrollmentKey,
         instanceUrl: currentUrlOrigin + '/api',
-        audience: 'homecall'
+        audience: 'homecall',
+        firebaseConfig: {
+            name: import.meta.env.VITE_FIREBASE_NAME,
+            apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+            appId: import.meta.env.VITE_FIREBASE_APP_ID,
+            messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+            projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+            storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        }
     })
 })
 

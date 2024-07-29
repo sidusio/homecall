@@ -1,12 +1,24 @@
 import * as SecureStore from 'expo-secure-store';
 import { clearCredentials, setupCredentials}  from "./auth";
 import { deviceClient } from './api';
+import firebase from '@react-native-firebase/app';
+
+interface firebaseConfig {
+  name: string;
+  apiKey: string;
+  appId: string;
+  messagingSenderId: string;
+  projectId: string;
+  storageBucket: string;
+  databaseURL: string | null;
+}
 
 interface EnrollmentData {
   deviceId: string;
   enrollmentKey: string;
   instanceUrl: string;
   audience: string;
+  firebaseConfig: firebaseConfig;
 }
 
 interface DeviceSettings {
@@ -26,7 +38,8 @@ function isEnrollmentData(data: any): data is EnrollmentData {
     typeof data.deviceId === 'string' &&
     typeof data.enrollmentKey === 'string' &&
     typeof data.instanceUrl === 'string' &&
-    typeof data.audience === 'string'
+    typeof data.audience === 'string' &&
+    typeof data.firebaseConfig === 'object'
   );
 }
 
@@ -52,6 +65,16 @@ async function enroll(data: EnrollmentData): Promise<boolean> {
 
     // Store the device settings in localStorage
     await storeSettings(res.settings);
+
+    // Can have clientId and databaseURL as well...
+    firebase.initializeApp({
+      apiKey: data.firebaseConfig.apiKey,
+      appId: data.firebaseConfig.appId,
+      messagingSenderId: data.firebaseConfig.messagingSenderId,
+      projectId: data.firebaseConfig.projectId,
+      storageBucket: data.firebaseConfig.storageBucket,
+      databaseURL: data.firebaseConfig.databaseURL ?? '',
+    }, { name: data.firebaseConfig.name });
 
     return true;
   } catch (e) {

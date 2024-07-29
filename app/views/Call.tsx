@@ -3,6 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
 import { Text } from 'react-native';
 import { useState, useEffect } from 'react';
+import messaging from '@react-native-firebase/messaging';
+import { deviceClient } from './../services/api';
 
 export default function Call(props: {
   instanceUrl: string,
@@ -13,6 +15,39 @@ export default function Call(props: {
   const { token, instanceUrl } = props;
 
   const [webViewRef, setWebViewRef] = useState(null);
+
+  useEffect(() => {
+    if(!token || !instanceUrl) {
+      return;
+    }
+
+    messaging()
+      .getToken()
+      .then(token => {
+        deviceClient(instanceUrl).updateNotificationToken({ notificationToken: token }, {
+          headers: {
+            Authorization: `Bearer ${props.token}`,
+          }
+        })
+      })
+  }, [token, instanceUrl]);
+
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      // Inject the message into the webview
+      if (webViewRef) {
+        const stringifiedMessage = JSON.stringify(remoteMessage);
+
+        const jsCode = `
+          window.dispatchEvent(new CustomEvent('fcm', { detail: ${stringifiedMessage} }));
+        `;
+
+        webViewRef.injectJavaScript(jsCode);
+      }
+    });
+
+    return unsubscribe;
+  });
 
   const injectToken = async () => {
     if (!webViewRef) {
