@@ -42,6 +42,7 @@ export default function Call(props: {
           window.dispatchEvent(new CustomEvent('fcm', { detail: ${stringifiedMessage} }));
         `;
 
+        // @ts-ignore
         webViewRef.injectJavaScript(jsCode);
       }
     });
@@ -58,6 +59,7 @@ export default function Call(props: {
       window.localStorage.setItem('token', '${token}');
     `;
 
+    // @ts-ignore
     webViewRef.injectJavaScript(jsCode);
   }
 
@@ -77,6 +79,7 @@ export default function Call(props: {
       window.deviceData = ${stringifyReactNativeData};
     `;
 
+    // @ts-ignore
     webViewRef.injectJavaScript(jsCode);
   }
 
@@ -102,6 +105,7 @@ export default function Call(props: {
       return;
     }
 
+    // @ts-ignore
     webViewRef.reload();
     initialLoad();
     setLastRefresh(Date.now());
@@ -124,9 +128,11 @@ export default function Call(props: {
      console.error = console.log;
      `;
 
+    // @ts-ignore
     webViewRef.injectJavaScript(debugging);
   }
 
+  // @ts-ignore
   const onMessage = (event) => {
     const message = event.nativeEvent.data;
     console.log('WebView: ' + message);
@@ -159,6 +165,7 @@ export default function Call(props: {
     <WebView
       style={styles.container}
       source={{ uri: `${fixInstanceUrl()}/device` }}
+      // @ts-ignore
       ref={setWebViewRef}
       onLoad={initialLoad}
       onMessage={onMessage}
