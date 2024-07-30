@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { deviceClient } from '@/clients';
 import { computed, watch, ref, onMounted } from 'vue'
-import config from '../../../homecall.config.json'
 
 // Types.
 interface Settings {
@@ -60,7 +59,7 @@ watch(activeCall, async () => {
   }
 
   //@ts-ignore - Jitsi is not typed.
-  jitsiAPI = new JitsiMeetExternalAPI(config.jitsi.domain, {
+  jitsiAPI = new JitsiMeetExternalAPI(window.config.jitsi.domain, {
     roomName: activeCall.value.jitsiRoomId,
     jwt: activeCall.value.jitsiJwt,
     parentNode: document.querySelector('#meeting'),

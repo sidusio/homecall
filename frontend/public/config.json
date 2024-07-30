@@ -1,0 +1,21 @@
+{
+    "jitsi": {
+        "domain": ""
+    },
+    "firebase": {
+        "apiKey": "",
+        "appId": "",
+        "messagingSenderId": "",
+        "projectId": "",
+        "storageBucket": ""
+    },
+    "auth0": {
+        "domain": "",
+        "clientId": "",
+        "redirectUri": "",
+        "audience": ""
+    },
+    "sentry": {
+        "dsn": ""
+    }
+}

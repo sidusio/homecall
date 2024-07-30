@@ -74,7 +74,7 @@ async function enroll(data: EnrollmentData): Promise<boolean> {
       projectId: data.firebaseConfig.projectId,
       storageBucket: data.firebaseConfig.storageBucket,
       databaseURL: data.firebaseConfig.databaseURL ?? '',
-    }, { name: data.firebaseConfig.name });
+    }, { name: "INSTANCE_FCM" });
 
     return true;
   } catch (e) {

@@ -1,5 +1,5 @@
 import './assets/styles/main.scss'
-import config from '../homecall.config.json'
+import { getConfig, allOptionsDefined, type Config } from './utils/config';
 
 import { createAuth0 } from '@auth0/auth0-vue';
 import { createApp } from 'vue'
@@ -21,6 +21,19 @@ import { faChevronDown, faChevronUp, faChevronRight, faPlus, faGear, faPen, faTr
 library.add([faGear, faPlus, faChevronRight, faChevronUp, faChevronDown, faPen, faTrash, faEnvelope, faCheck, faExclamationTriangle])
 
 const app = createApp(App)
+
+const config = await getConfig();
+
+if(!allOptionsDefined(config)) {
+  console.log({config})
+  throw new Error('Not all options are defined in the config');
+}
+declare global {
+  interface Window {
+    config: Config;
+  }
+}
+window.config = config;
 
 Sentry.init({
     app,

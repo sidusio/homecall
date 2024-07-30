@@ -4,6 +4,7 @@ import { WebView } from 'react-native-webview';
 import { Text } from 'react-native';
 import { useState, useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
+import firebase from '@react-native-firebase/app';
 import { deviceClient } from './../services/api';
 
 export default function Call(props: {
@@ -21,7 +22,7 @@ export default function Call(props: {
       return;
     }
 
-    messaging()
+    firebase.app("INSTANCE_FCM").messaging()
       .getToken()
       .then(token => {
         deviceClient(instanceUrl).updateNotificationToken({ notificationToken: token }, {
@@ -33,7 +34,7 @@ export default function Call(props: {
   }, [token, instanceUrl]);
 
   useEffect(() => {
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
+    const unsubscribe = firebase.app("INSTANCE_FCM").messaging().onMessage(async remoteMessage => {
       // Inject the message into the webview
       if (webViewRef) {
         const stringifiedMessage = JSON.stringify(remoteMessage);
