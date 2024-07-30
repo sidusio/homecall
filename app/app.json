@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Homecall",
+    "name": "Sidus Hemsamtal",
     "slug": "homecall",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,10 @@
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "bundleIdentifier": "io.sidus.homecall",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "buildNumber": "1.0.1"
     },
     "android": {
       "package": "io.sidus.homecall",
@@ -47,7 +50,15 @@
     "plugins": [
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+       "expo-build-properties",
+        {
+         "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "owner": "sidus-systems"
   }
