@@ -3,6 +3,8 @@ import { officeClient } from '@/clients';
 import QrcodeVue from 'qrcode.vue'
 import { useAuth0 } from '@auth0/auth0-vue';
 import { computed, onMounted, onUnmounted } from 'vue';
+// @ts-ignore
+import config from '../../homecall.config.json'
 
 const { getAccessTokenSilently } = useAuth0();
 
@@ -24,12 +26,12 @@ const qrcode = computed(() => {
         instanceUrl: currentUrlOrigin + '/api',
         audience: 'homecall',
         firebaseConfig: {
-            name: import.meta.env.VITE_FIREBASE_NAME,
-            apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-            appId: import.meta.env.VITE_FIREBASE_APP_ID,
-            messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-            projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-            storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+            name: config.firebase.name,
+            apiKey: config.firebase.apiKey,
+            appId: config.firebase.appId,
+            messagingSenderId: config.firebase.messagingSenderId,
+            projectId: config.firebase.projectId,
+            storageBucket: config.firebase.storageBucket,
         }
     })
 })

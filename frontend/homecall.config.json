@@ -1,0 +1,22 @@
+{
+    "jitsi": {
+        "domain": "8x8.vc"
+    },
+    "firebase": {
+        "name": "io-sidus-homecall",
+        "apiKey": "AIzaSyCkjc6dDLWy-8UPtEqp-6K8lBFSvFPygYI",
+        "appId": "1:749924697717:android:0d5b1d78c5b9aae2849a3c",
+        "messagingSenderId": "749924697717",
+        "projectId": "homecall-37047",
+        "storageBucket": "homecall-37047.appspot.com"
+    },
+    "auth0": {
+        "domain": "homecall.eu.auth0.com",
+        "clientId": "t0SCUNEPaCWyLVzVMbgj7TmVVgqDqJEN",
+        "redirectUri": "https://4b832e1428fa.ngrok.app/tenants",
+        "audience": "https://office-api.homecall.sidus.io"
+    },
+    "sentry": {
+        "dsn": "https://9639d3406a54364151d90077a1a2020b@o4507538136170496.ingest.de.sentry.io/4507538144755792"
+    }
+}

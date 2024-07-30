@@ -1,4 +1,5 @@
 import './assets/styles/main.scss'
+import config from '../homecall.config.json'
 
 import { createAuth0 } from '@auth0/auth0-vue';
 import { createApp } from 'vue'
@@ -21,15 +22,14 @@ library.add([faGear, faPlus, faChevronRight, faChevronUp, faChevronDown, faPen, 
 
 const app = createApp(App)
 
-/*Sentry.init({
+Sentry.init({
     app,
-    dsn: "https://9639d3406a54364151d90077a1a2020b@o4507538136170496.ingest.de.sentry.io/4507538144755792",
+    dsn: config.sentry.dsn,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
       Sentry.feedbackIntegration({
         // Additional SDK configuration goes in here, for example:
-        //autoInject: false,
         colorScheme: "system",
         showBranding: false,
         triggerLabel: "Ge oss feedback",
@@ -55,17 +55,17 @@ const app = createApp(App)
     // Session Replay
     replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
     replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
-});*/
+});
 
 app.use(
-    createAuth0({
-        domain: "homecall.eu.auth0.com",
-        clientId: "t0SCUNEPaCWyLVzVMbgj7TmVVgqDqJEN",
-        authorizationParams: {
-            redirect_uri: window.location.origin + '/tenants',
-            audience: "https://office-api.homecall.sidus.io",
-        }
-    })
+  createAuth0({
+    domain: config.auth0.domain,
+    clientId: config.auth0.clientId,
+    authorizationParams: {
+      redirect_uri: config.auth0.redirectUri,
+      audience: config.auth0.audience,
+    }
+  })
 );
 app.use(createPinia())
 app.use(router)
