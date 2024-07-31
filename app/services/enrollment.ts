@@ -67,14 +67,14 @@ async function enroll(data: EnrollmentData): Promise<boolean> {
     await storeSettings(res.settings);
 
     // Can have clientId and databaseURL as well...
-    firebase.initializeApp({
+    /*firebase.initializeApp({
       apiKey: data.firebaseConfig.apiKey,
       appId: data.firebaseConfig.appId,
       messagingSenderId: data.firebaseConfig.messagingSenderId,
       projectId: data.firebaseConfig.projectId,
       storageBucket: data.firebaseConfig.storageBucket,
       databaseURL: data.firebaseConfig.databaseURL ?? '',
-    }, { name: "INSTANCE_FCM" });
+    }, { name: "INSTANCE_FCM" });*/
 
     return true;
   } catch (e) {
