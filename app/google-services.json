@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "357033879901",
+    "project_id": "noted-falcon-394809",
+    "storage_bucket": "noted-falcon-394809.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357033879901:android:07b8de1e19495d07bce0b4",
+        "android_client_info": {
+          "package_name": "io.sidus.homecall"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApADHSRq9If8WORCYVrJINjYU4D6oXwpY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

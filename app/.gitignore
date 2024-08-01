@@ -1,6 +1,4 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-google-services.json
-GoogleService-info.plist
 
 # dependencies
 node_modules/
