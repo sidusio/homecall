@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Text, View, Button, TouchableOpacity, Pressable } from 'react-native';
+import { Text, View } from 'react-native';
 import { useState, useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
 import { deviceClient } from './../services/api';
