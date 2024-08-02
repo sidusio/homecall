@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sidus Hemsamtal",
     "slug": "homecall",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,7 +21,7 @@
       },
       "bundleIdentifier": "io.sidus.homecall",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1.0.5",
+      "buildNumber": "1.0.6",
       "entitlements": {
         "aps-environment": "development"
       }
@@ -55,9 +55,9 @@
       "@react-native-firebase/messaging",
       "expo-secure-store",
       [
-       "expo-build-properties",
+        "expo-build-properties",
         {
-         "ios": {
+          "ios": {
             "useFrameworks": "static"
           }
         }

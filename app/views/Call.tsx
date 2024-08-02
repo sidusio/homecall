@@ -1,8 +1,10 @@
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { Text, View, Button, TouchableOpacity, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
 import { deviceClient } from './../services/api';
+import { clearCredentials } from "../services/auth";
 
 export default function Call(props: {
   instanceUrl: string,
@@ -13,6 +15,19 @@ export default function Call(props: {
   const { token, instanceUrl } = props;
 
   const [webViewRef, setWebViewRef] = useState(null);
+
+  const [reenrollment, setReenrollment] = useState(false);
+  const [reloading, setReloading] = useState(false);
+
+  // watch reenrollment
+  useEffect(() => {
+    if(reenrollment) {
+      clearCredentials().then(() => {
+        console.log('Credentials cleared');
+        setReloading(true);
+      });
+    }
+  }, [reenrollment]);
 
   useEffect(() => {
     if(!token || !instanceUrl) {
@@ -26,7 +41,11 @@ export default function Call(props: {
           headers: {
             Authorization: `Bearer ${props.token}`,
           }
-        })
+        }).catch(err => {
+          if(err.rawMessage === 'invalid device id') {
+            setReenrollment(true);
+          }
+        });
       })
   }, [token, instanceUrl]);
 
@@ -159,6 +178,16 @@ export default function Call(props: {
     }
   }
 
+  if(reloading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>
+          Enheten är nu avregistrerad. Stäng ner appen, och ta upp den igen för att registrera enheten på nytt.
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <WebView
       style={styles.container}
@@ -177,5 +206,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
+  },
+  text: {
+    alignItems: 'center',
+    padding: 40,
+    margin: 20,
+    backgroundColor: '#DDDDDD',
+    borderRadius: 10,
   },
 });
