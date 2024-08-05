@@ -58,9 +58,11 @@ jobs:
         - uses: actions/download-artifact@v4
           with:
             name: buf-go
+            path: ${{ github.workspace }}/backend/gen/connect
         - uses: actions/download-artifact@v4
           with:
             name: jet-go
+            path: ${{ github.workspace }}/backend/gen/jetdb
         - name: Build the Docker image
           run: docker build ./backend -t ghcr.io/${{ github.repository }}/backend:v0.0.0-${{ github.sha }}
         - name: Push the Docker image
@@ -77,6 +79,7 @@ jobs:
         - uses: actions/download-artifact@v4
           with:
             name: buf-frontend
+            path: ${{ github.workspace }}/frontend/gen/connect
         - name: Build the Docker image
           run: docker build ./frontend -t ghcr.io/${{ github.repository }}/frontend:v0.0.0-${{ github.sha }}
         - name: Push the Docker image
@@ -94,6 +97,7 @@ jobs:
         - uses: actions/download-artifact@v4
           with:
             name: buf-frontend
+            path: ${{ github.workspace }}/frontend/gen/connect
         - name: Build the tarball
           run: npm run build
           working-directory: frontend
@@ -118,11 +122,12 @@ jobs:
           uses: actions/download-artifact@v4
           with:
             name: frontend
+            path: ${{ github.workspace }}/frontend.tar.gz
         - name: Release
           uses: softprops/action-gh-release@v2
           with:
             files: |
-              frontend/frontend.tar.gz
+              frontend.tar.gz
             name: Release v0.0.0-${{ github.sha }}
             tag_name: v0.0.0-${{ github.sha }}
             body: |
