@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Text, View } from 'react-native';
+import { Text, View, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
 import { deviceClient } from './../services/api';
@@ -16,23 +16,12 @@ export default function Call(props: {
 
   const [webViewRef, setWebViewRef] = useState(null);
 
-  const [reenrollment, setReenrollment] = useState(false);
-  const [reloading, setReloading] = useState(false);
-
-  // watch reenrollment
-  useEffect(() => {
-    if(reenrollment) {
-      clearCredentials().then(() => {
-        console.log('Credentials cleared');
-        setReloading(true);
-      });
-    }
-  }, [reenrollment]);
-
   useEffect(() => {
     if(!token || !instanceUrl) {
       return;
     }
+
+    messaging().requestPermission();
 
     messaging()
       .getToken()
@@ -41,11 +30,7 @@ export default function Call(props: {
           headers: {
             Authorization: `Bearer ${props.token}`,
           }
-        }).catch(err => {
-          if(err.rawMessage === 'invalid device id') {
-            setReenrollment(true);
-          }
-        });
+        })
       })
   }, [token, instanceUrl]);
 
@@ -178,27 +163,26 @@ export default function Call(props: {
     }
   }
 
-  if(reloading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.text}>
-          Enheten är nu avregistrerad. Stäng ner appen, och ta upp den igen för att registrera enheten på nytt.
-        </Text>
-      </View>
-    )
-  }
-
   return (
-    <WebView
-      style={styles.container}
-      source={{ uri: `${fixInstanceUrl()}/device` }}
-      // @ts-ignore
-      ref={setWebViewRef}
-      onLoad={initialLoad}
-      onMessage={onMessage}
-      mediaPlaybackRequiresUserAction={ false }
-      allowsInlineMediaPlayback={ true }
-    />
+    <>
+      <Pressable
+        style={styles.button}
+        onPress={clearCredentials}
+      >
+        <Text>Avregistrera</Text>
+      </Pressable>
+
+      <WebView
+        style={styles.container}
+        source={{ uri: `${fixInstanceUrl()}/device` }}
+        // @ts-ignore
+        ref={setWebViewRef}
+        onLoad={initialLoad}
+        onMessage={onMessage}
+        mediaPlaybackRequiresUserAction={ false }
+        allowsInlineMediaPlayback={ true }
+      />
+    </>
   )
 }
 
@@ -214,4 +198,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#DDDDDD',
     borderRadius: 10,
   },
+  button: {
+    position: 'absolute',
+    zIndex: 1,
+    bottom: 90,
+    right: 10,
+    padding: 20,
+    backgroundColor: 'rgb(67, 107, 177)',
+  }
 });
