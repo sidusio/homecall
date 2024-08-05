@@ -19,6 +19,7 @@ import (
 	"sidus.io/home-call/jitsi"
 	"sidus.io/home-call/messaging"
 	"sidus.io/home-call/notifications"
+	"sidus.io/home-call/services/auth"
 	"sidus.io/home-call/services/tenantapi"
 	"sidus.io/home-call/util"
 	"time"
@@ -310,14 +311,19 @@ func (s *Service) StartCall(ctx context.Context, req *connect.Request[homecallv1
 		return nil, fmt.Errorf("failed to create call: %w", err)
 	}
 
+	authDetails := auth.GetAuth(ctx)
+	if authDetails == nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("unauthenticated"))
+	}
+
 	// Create jitsi jwt for office
-	officeToken, err := jitsiCall.OfficeJWT()
+	officeToken, err := jitsiCall.OfficeJWT(authDetails.DisplayName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create office token: %w", err)
 	}
 
 	// Create jitsi jwt for device
-	deviceToken, err := jitsiCall.DeviceJWT()
+	deviceToken, err := jitsiCall.DeviceJWT(device.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device token: %w", err)
 	}

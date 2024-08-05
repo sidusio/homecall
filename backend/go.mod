@@ -4,6 +4,7 @@ go 1.21.0
 
 require (
 	connectrpc.com/connect v1.16.1
+	firebase.google.com/go/v4 v4.14.1
 	github.com/ThreeDotsLabs/watermill v1.3.5
 	github.com/auth0/go-jwt-middleware/v2 v2.2.1
 	github.com/coreos/go-oidc/v3 v3.11.0
@@ -29,7 +30,6 @@ require (
 	cloud.google.com/go/iam v1.1.7 // indirect
 	cloud.google.com/go/longrunning v0.5.5 // indirect
 	cloud.google.com/go/storage v1.40.0 // indirect
-	firebase.google.com/go/v4 v4.14.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
