@@ -65,9 +65,9 @@ watch(activeCall, async () => {
     parentNode: document.querySelector('#meeting'),
     height: '100vh',
     configOverwrite: {
-      prejoinConfig: {
-        enabled: false
-      },
+      requireDisplayName: false,
+      prejoinPageEnabled: false,
+      disableDeepLinking: true,
       toolbarButtons: [],
       toolbarConfig: {
         alwaysVisible: true,
