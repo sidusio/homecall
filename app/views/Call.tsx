@@ -163,7 +163,7 @@ export default function Call(props: {
     }
   }
 
-  // ApplicationNameForUserAgent is important to make everything work on iOS.
+  // ApplicationNameForUserAgent is important to make everything work on iOS (Version/16.2 Safari/605.1.15 worked latest).
   return (
     <>
       <Pressable
@@ -182,7 +182,7 @@ export default function Call(props: {
         onMessage={onMessage}
         mediaPlaybackRequiresUserAction={ false }
         allowsInlineMediaPlayback={ true }
-        applicationNameForUserAgent={"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/80.0.3987.163 Chrome/80.0.3987.163 Safari/537.36"}
+        applicationNameForUserAgent={"Version/16.2 Safari/605.1.15"}
       />
     </>
   )

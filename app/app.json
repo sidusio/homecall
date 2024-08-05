@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sidus Hemsamtal",
     "slug": "homecall",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,7 +21,7 @@
       },
       "bundleIdentifier": "io.sidus.homecall",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1.1.0",
+      "buildNumber": "1.1.1",
       "entitlements": {
         "aps-environment": "development"
       }
