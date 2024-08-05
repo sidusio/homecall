@@ -19,7 +19,7 @@ type Config struct {
 
 	AuthDisabled bool   `envconfig:"AUTH_DISABLED" default:"false"`
 	AuthIssuer   string `envconfig:"AUTH_ISSUER" default:"https://homecall.eu.auth0.com/"`
-	AuthAudience string `envconfig:"AUTH_AUDIENCE" default:"https://homecall.sidus.io"`
+	AuthAudience string `envconfig:"AUTH_AUDIENCE" default:"https://office-api.homecall.sidus.io"`
 
 	// Firebase
 	FirebaseProjectId    string `envconfig:"FIREBASE_PROJECT_ID" required:"false"`
