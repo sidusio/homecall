@@ -168,6 +168,7 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*homecallv1al
 		Device.DeviceID,
 		Device.Name,
 		Enrollment.DeviceSettings,
+		Enrollment.Key,
 		Tenant.TenantID,
 		DeviceNotificationToken.UpdatedAt.IS_NOT_NULL().
 			AND(DeviceNotificationToken.UpdatedAt.GT(CAST(NOW()).AS_TIMESTAMP().SUB(INTERVALd(time.Hour)))).
