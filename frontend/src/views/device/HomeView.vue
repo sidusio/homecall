@@ -64,6 +64,7 @@ watch(activeCall, async () => {
     jwt: activeCall.value.jitsiJwt,
     parentNode: document.querySelector('#meeting'),
     height: '100vh',
+    lang: 'sv',
     configOverwrite: {
       requireDisplayName: false,
       prejoinPageEnabled: false,
@@ -76,10 +77,11 @@ watch(activeCall, async () => {
       hideConferenceTimer: true,
       filmstrip: {
         disableResizable: true,
-      }
+      },
     },
     interfaceConfigOverwrite: {
       MOBILE_APP_PROMO: false,
+      LANG_DETECTION: false
     }
   });
 

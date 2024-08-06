@@ -182,7 +182,9 @@ export default function Call(props: {
 
       <WebView
         style={styles.container}
-        source={{ uri: `${fixInstanceUrl()}/device` }}
+        source={{ uri: `${fixInstanceUrl()}/device`, headers: {
+          "Accept-Language": "sv",
+        }}}
         // @ts-ignore
         ref={setWebViewRef}
         onLoad={initialLoad}
@@ -190,7 +192,7 @@ export default function Call(props: {
         mediaPlaybackRequiresUserAction={ false }
         allowsInlineMediaPlayback={ true }
         applicationNameForUserAgent={"Version/16.2 Safari/605.1.15"}
-        mediaCapturePermissionGrantType={"grant"}
+        //mediaCapturePermissionGrantType={"grant"}
       />
     </>
   )

@@ -24,6 +24,10 @@
       "buildNumber": "1.1.1",
       "entitlements": {
         "aps-environment": "development"
+      },
+      "infoPlist": {
+        "CFBundleLocalizations": ["sv"],
+        "CFBundleDevelopmentRegion": "sv"
       }
     },
     "android": {
