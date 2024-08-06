@@ -195,12 +195,10 @@ onMounted(async () => {
         ></EnrollDevice>
 
         <div class="home__main" v-else>
-          <!--<h1>Välkommen till Homecall</h1>
+          <h1>Välkommen till Homecall</h1>
           <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
 
-          <p class="tip">För att ta bort en enhet, klicka på den och välj "Ta bort".</p>-->
-
-          <Calendar />
+          <!--<Calendar />-->
         </div>
       </main>
     </div>

@@ -44,7 +44,7 @@ getConfig().then((config) => {
         Sentry.replayIntegration(),
         Sentry.feedbackIntegration({
           // Additional SDK configuration goes in here, for example:
-          colorScheme: "system",
+          colorScheme: "light",
           showBranding: false,
           triggerLabel: "Ge oss feedback",
           formTitle: "Ge oss feedback",
