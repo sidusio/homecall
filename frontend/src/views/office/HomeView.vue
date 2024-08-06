@@ -2,14 +2,12 @@
 import '@event-calendar/core/index.css';
 import Office from '@/templates/Office.vue';
 import { officeClient } from '@/clients';
-import { onMounted, ref } from 'vue';
+import { onMounted, onBeforeMount, ref } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
 import Calendar from '@/components/Calendar.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useTenantIdStore } from '@/stores/tenantId';
-
-const { getAccessTokenSilently } = useAuth0();
 
 interface Device {
   id: string;
@@ -22,6 +20,8 @@ interface Enrollment {
   enrollmentKey: string;
   deviceId: string;
 }
+
+const { getAccessTokenSilently } = useAuth0();
 
 const registerDevice = ref(false)
 const enrollment = ref<Enrollment | null>(null)

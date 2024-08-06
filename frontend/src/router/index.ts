@@ -19,6 +19,20 @@ const checkVerifiedEmail = (to, from, next) => {
   }
 }
 
+/**
+ * Check if the user has selected a tenant.
+ */
+// @ts-ignore
+const checkTenantId = (to, from, next) => {
+  const tenantId = localStorage.getItem('tenantId');
+
+  if(tenantId === null) {
+    next({ name: 'SelectTenants' });
+  } else {
+    next();
+  }
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -26,6 +40,15 @@ const router = createRouter({
       path: '/',
       name: 'Login',
       component: () => import('../views/office/LoginView.vue'),
+      beforeEnter: (to, from, next) => {
+        const { user } = useAuth0();
+
+        if(user !== undefined) {
+          next({ name: 'Home' });
+        }
+
+        next({ name: 'Login' });
+      },
     },
     {
       path: '/verify-email',
@@ -37,7 +60,7 @@ const router = createRouter({
       path: '/dashboard',
       name: 'Home',
       component: () => import('../views/office/HomeView.vue'),
-      beforeEnter: [authGuard, checkVerifiedEmail],
+      beforeEnter: [authGuard, checkVerifiedEmail, checkTenantId],
     },
     {
       path: '/invites',
