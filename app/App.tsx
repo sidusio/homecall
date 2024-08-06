@@ -3,8 +3,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import Enroll from "./views/Enroll";
 import { useKeepAwake } from 'expo-keep-awake';
 import { useState, useEffect } from 'react';
-import {getApiToken, hasCredentials, setupCredentials, clearCredentials} from "./services/auth";
-import {EnrollmentData, enroll, getSettings} from "./services/enrollment";
+import { getApiToken, hasCredentials } from "./services/auth";
+import { EnrollmentData, enroll } from "./services/enrollment";
+import { getSettings } from "./services/storage";
 import Call from "./views/Call";
 import * as Sentry from '@sentry/react-native';
 import {StatusBar} from 'react-native';
@@ -44,7 +45,6 @@ function App() {
   }
 
   useEffect(() => {
-    //clearCredentials();
     if (!enrolled) {
       return;
     }
@@ -64,10 +64,6 @@ function App() {
     setEnrolled(await enroll(data));
   }
 
-  const refresh = async () => {
-    setEnrolled(await hasCredentials())
-  }
-
 
   // If we don't know if the user is enrolled yet, don't show anything
   if (enrolled === null) {
@@ -85,7 +81,7 @@ function App() {
   }
 
   return (
-    <Call instanceUrl={instanceUrl} token={apiToken} deviceId={deviceId} settings={settings} refresh={refresh} />
+    <Call instanceUrl={instanceUrl} token={apiToken} deviceId={deviceId} settings={settings} />
   );
 }
 

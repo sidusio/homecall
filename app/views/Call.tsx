@@ -1,17 +1,14 @@
 import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Text, View, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import messaging from '@react-native-firebase/messaging';
-import { deviceClient } from './../services/api';
-import { clearCredentials } from "../services/auth";
+import { deviceClient } from '../services/api';
 
 export default function Call(props: {
   instanceUrl: string,
   token: string,
   settings: any,
   deviceId: string,
-  refresh: () => void,
 }){
   const { token, instanceUrl } = props;
 
@@ -165,21 +162,9 @@ export default function Call(props: {
     }
   }
 
-  const unregister = async () => {
-    await clearCredentials();
-    props.refresh();
-  }
-
   // ApplicationNameForUserAgent is important to make everything work on iOS (Version/16.2 Safari/605.1.15 worked latest).
   return (
     <>
-      <Pressable
-        style={styles.button}
-        onPress={unregister}
-      >
-        <Text>Avregistrera</Text>
-      </Pressable>
-
       <WebView
         style={styles.container}
         source={{ uri: `${fixInstanceUrl()}/device`, headers: {

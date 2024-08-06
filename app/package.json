@@ -29,7 +29,8 @@
     "react-native": "0.73.6",
     "react-native-rsa-native": "^2.0.5",
     "react-native-webview": "13.6.4",
-    "text-encoding": "^0.7.0"
+    "text-encoding": "^0.7.0",
+    "@react-native-async-storage/async-storage": "1.21.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

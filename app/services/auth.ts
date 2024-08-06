@@ -1,6 +1,6 @@
-import * as SecureStore from 'expo-secure-store';
 import { RSA } from 'react-native-rsa-native';
 import base64url from "base64url";
+import {getCredentials, storeCredentials} from "./storage";
 
 const Buffer = require("buffer").Buffer;
 
@@ -22,19 +22,12 @@ function isCredentials(data: any): data is Credentials {
   );
 }
 
-export {
-  setupCredentials,
-  getApiToken,
-  hasCredentials,
-  clearCredentials,
-}
-
 
 /**
  * Sets up the credentials for the device
  * @returns PEM  encoded (SPKI) RSA public key for enrollment.
  */
-async function setupCredentials(deviceId: string, instanceUrl: string, audience: string): Promise<string> {
+export async function setupCredentials(deviceId: string, instanceUrl: string, audience: string): Promise<string> {
   const keypair = await RSA.generateKeys(2048);
 
   const credentials: Credentials = {
@@ -53,7 +46,7 @@ async function setupCredentials(deviceId: string, instanceUrl: string, audience:
  * Gets the credentials for the device
  * @returns The API token and the api url
  */
-async function getApiToken(): Promise<[string, string, string]> {
+export async function getApiToken(): Promise<[string, string, string]> {
   const { privateKey, deviceId, instanceUrl, audience } = await getCredentials();
 
   const jwtHeader = {
@@ -83,39 +76,11 @@ async function getApiToken(): Promise<[string, string, string]> {
   return [jwt, instanceUrl, deviceId];
 }
 
-async function hasCredentials(): Promise<boolean> {
+export async function hasCredentials(): Promise<boolean> {
   try {
     await getCredentials();
     return true;
   } catch (error) {
     return false;
   }
-}
-
-async function clearCredentials(): Promise<void> {
-  await SecureStore.deleteItemAsync(homecallSecureStoreTag);
-}
-
-
-const homecallSecureStoreTag = 'io.sidus.homecall.credentials';
-
-async function storeCredentials (credentials: Credentials): Promise<void> {
-  await SecureStore.setItemAsync(homecallSecureStoreTag, JSON.stringify(credentials));
-}
-
-async function getCredentials(): Promise<Credentials> {
-  const credentialsData = await SecureStore.getItemAsync(homecallSecureStoreTag);
-
-  if (!credentialsData) {
-    throw new Error('No credentials found');
-  }
-
-  const credentials = JSON.parse(credentialsData);
-
-  if (!isCredentials(credentials)) {
-    clearCredentials();
-    throw new Error('Invalid credentials, clearing them');
-  }
-
-  return credentials;
 }

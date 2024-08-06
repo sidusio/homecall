@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
-import { clearCredentials, setupCredentials}  from "./auth";
+import { setupCredentials}  from "./auth";
+import { clearCredentials } from "./storage";
 import { deviceClient } from './api';
+import { storeSettings } from './storage';
 import firebase from '@react-native-firebase/app';
 
 interface firebaseConfig {
@@ -13,7 +15,7 @@ interface firebaseConfig {
   databaseURL: string | null;
 }
 
-interface EnrollmentData {
+export interface EnrollmentData {
   deviceId: string;
   enrollmentKey: string;
   instanceUrl: string;
@@ -21,10 +23,6 @@ interface EnrollmentData {
   firebaseConfig: firebaseConfig;
 }
 
-interface DeviceSettings {
-  autoAnswer: boolean;
-  autoAnswerDelaySeconds: bigint;
-}
 
 /**
  * Checks if the given data is an EnrollmentData object.
@@ -32,7 +30,7 @@ interface DeviceSettings {
  * @param data - The data to check
  * @returns True if the data is an EnrollmentData object, false otherwise
  */
-function isEnrollmentData(data: any): data is EnrollmentData {
+export function isEnrollmentData(data: any): data is EnrollmentData {
   return (
     typeof data === 'object' &&
     typeof data.deviceId === 'string' &&
@@ -49,7 +47,7 @@ function isEnrollmentData(data: any): data is EnrollmentData {
  * @param data - The enrollment data
  * @returns True if the device was enrolled, false otherwise
  */
-async function enroll(data: EnrollmentData): Promise<boolean> {
+export async function enroll(data: EnrollmentData): Promise<boolean> {
   const publicKey = await setupCredentials(data.deviceId, data.instanceUrl, data.audience);
 
   try {
@@ -75,43 +73,10 @@ async function enroll(data: EnrollmentData): Promise<boolean> {
       storageBucket: data.firebaseConfig.storageBucket,
       databaseURL: data.firebaseConfig.databaseURL ?? '',
     }, { name: "INSTANCE_FCM" });*/
-
-    return true;
   } catch (e) {
     console.log('Failed to enroll device', e);
     await clearCredentials();
     return false;
   }
   return true;
-}
-
-/**
- * Stores the device settings.
- *
- * @param settings - The device settings to store
- */
-async function storeSettings(settings: DeviceSettings) {
-  await SecureStore.setItemAsync('io.sidus.homecall.deviceSettings', JSON.stringify(settings));
-}
-
-/**
- * Gets the device settings.
- *
- * @returns The device settings or false if the settings are not found
- */
-async function getSettings(): Promise<DeviceSettings | boolean> {
-  const settings = await SecureStore.getItemAsync('io.sidus.homecall.deviceSettings');
-
-  if(!settings) {
-    return false;
-  }
-
-  return JSON.parse(settings);
-}
-
-export {
-  enroll,
-  EnrollmentData,
-  isEnrollmentData,
-  getSettings
 }
