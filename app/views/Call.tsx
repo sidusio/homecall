@@ -11,6 +11,7 @@ export default function Call(props: {
   token: string,
   settings: any,
   deviceId: string,
+  refresh: () => void,
 }){
   const { token, instanceUrl } = props;
 
@@ -122,12 +123,13 @@ export default function Call(props: {
      // Debug
      console = new Object();
      console.log = function(log) {
-      window.ReactNativeWebView.postMessage(JSON.stringify(log))
+      window.ReactNativeWebView.postMessage(JSON.stringify(log));
      };
      console.debug = console.log;
      console.info = console.log;
      console.warn = console.log;
      console.error = console.log;
+     void(0); // Needed to prevent the 'JavaScript execution returned a result of an unsupported type' error
      `;
 
     // @ts-ignore
@@ -163,12 +165,17 @@ export default function Call(props: {
     }
   }
 
+  const unregister = async () => {
+    await clearCredentials();
+    props.refresh();
+  }
+
   // ApplicationNameForUserAgent is important to make everything work on iOS (Version/16.2 Safari/605.1.15 worked latest).
   return (
     <>
       <Pressable
         style={styles.button}
-        onPress={clearCredentials}
+        onPress={unregister}
       >
         <Text>Avregistrera</Text>
       </Pressable>
@@ -183,6 +190,7 @@ export default function Call(props: {
         mediaPlaybackRequiresUserAction={ false }
         allowsInlineMediaPlayback={ true }
         applicationNameForUserAgent={"Version/16.2 Safari/605.1.15"}
+        mediaCapturePermissionGrantType={"grant"}
       />
     </>
   )

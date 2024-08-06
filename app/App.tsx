@@ -64,6 +64,11 @@ function App() {
     setEnrolled(await enroll(data));
   }
 
+  const refresh = async () => {
+    setEnrolled(await hasCredentials())
+  }
+
+
   // If we don't know if the user is enrolled yet, don't show anything
   if (enrolled === null) {
     return <View />;
@@ -80,7 +85,7 @@ function App() {
   }
 
   return (
-    <Call instanceUrl={instanceUrl} token={apiToken} deviceId={deviceId} settings={settings} />
+    <Call instanceUrl={instanceUrl} token={apiToken} deviceId={deviceId} settings={settings} refresh={refresh} />
   );
 }
 
