@@ -93,6 +93,12 @@ const router = createRouter({
       beforeEnter: [authGuard, checkVerifiedEmail],
     },
     {
+      path: '/enhet/:deviceId',
+      name: 'Device',
+      component: () => import('../views/office/DeviceView.vue'),
+      beforeEnter: [authGuard, checkVerifiedEmail],
+    },
+    {
       path: '/device',
       name: 'Home (from device)',
       component: () => import('../views/device/HomeView.vue'),

@@ -82,7 +82,7 @@ const enrollDevice = async (e: Event) => {
                 </label>
                 <span class="register-device__auto-answer-delay">
                     <span>efter</span>
-                    <input type="number" placeholder="Auto Answer Delay" v-model="autoAnswerDelay" min="0"/>
+                    <input type="number" placeholder="Auto Answer Delay" v-model="autoAnswerDelay" min="0" max="60"/>
                     <span>sek</span>
                 </span>
             </span>

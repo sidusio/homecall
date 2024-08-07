@@ -50,6 +50,7 @@ const removeTenant = async () => {
             @click="toggle"
             class="btn btn--danger"
         >
+            <font-awesome-icon icon="trash" />
             Ta bort organisation
         </button>
     </main>
@@ -67,6 +68,7 @@ const removeTenant = async () => {
                 @click="removeTenant"
                 class="btn btn--danger"
             >
+                <font-awesome-icon icon="trash" />
                 Ja, jag är säker
             </button>
 

@@ -6,6 +6,7 @@ import { onMounted, onBeforeMount, ref } from 'vue';
 import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
 import Calendar from '@/components/Calendar.vue';
+import Loading from '@/components/Loading.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useTenantIdStore } from '@/stores/tenantId';
 
@@ -84,37 +85,12 @@ const handleEnrollment = (deviceId: string) => {
   listDevices()
 }
 
-/**
- * Toggle the removal of a device.
- *
- * @param deviceId - The id of the device.
- */
-const toggleRemoveDevice = (deviceId: string) => {
-  const removeDiv = document.getElementById(`remove-${deviceId}`)
-  if (removeDiv) {
-    removeDiv.style.display = removeDiv.style.display === 'none' ? 'flex' : 'none'
-  }
-}
-
-/**
- * Remove a device.
- *
- * @param deviceId - The id of the device.
- */
-const removeDevice = async (deviceId: string) => {
-  const token = await getAccessTokenSilently();
-  const auth = {
-    headers: {
-      Authorization: 'Bearer ' + token
-    }
-  }
-
-  officeClient.removeDevice({ deviceId }, auth)
-  listDevices()
-}
+const loading = ref(false)
 
 onMounted(async () => {
+  loading.value = true
   listDevices()
+  loading.value = false
 })
 </script>
 
@@ -122,13 +98,17 @@ onMounted(async () => {
   <Office>
     <div class="home">
       <aside class="home__side">
-        <div class="home__device-container">
-          <div class="home__device-header">
-            <h1>Enheter</h1>
+        <div class="home__device-header">
+          <h1>Enheter</h1>
 
-            <p>{{ devices.length }} enheter</p>
-          </div>
+          <p v-if="devices.length > 0">{{ devices.length }} enheter</p>
+        </div>
 
+        <div class="home__loading" v-if="loading">
+          <Loading />
+        </div>
+
+        <div class="home__device-container" v-else>
           <ul class="home__devices" v-if="devices.length > 0">
             <li
               class="home__device"
@@ -136,18 +116,14 @@ onMounted(async () => {
               :key="device.id"
               :class="recentlyModifiedDeviceId === device.id ? 'home__device--recently-modified' : ''"
             >
-              <div class="home__device-info" @click="toggleRemoveDevice(device.id)">
+              <router-link :to="'/enhet/' + device.id" class="home__device-info">
                 <span class="home__device--small">
                   {{ device.id ? device.id : 'Ingen ID'}}
                 </span>
                 <div class="home__device--row">
                   {{ device.name }}
                 </div>
-
-                <div class="home__device-remove" :id="'remove-' + device.id">
-                  <button @click="removeDevice(device.id)">Ta bort</button>
-                </div>
-              </div>
+              </router-link>
 
               <router-link
                 v-if="!device.enrollmentKey"
@@ -217,6 +193,10 @@ onMounted(async () => {
     width: 100%;
   }
 
+  &__loading {
+    margin-top: -10rem;
+  }
+
   &__side {
     display: flex;
     flex-direction: column;
@@ -236,6 +216,13 @@ onMounted(async () => {
       font-size: 0.8rem;
       color: gray;
     }
+  }
+
+  &__device-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: calc(100% - 130px);
   }
 
   &__register {
@@ -279,6 +266,11 @@ onMounted(async () => {
     gap: 2rem;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
     padding: 1rem;
+    transition: all 0.3s;
+
+    &:hover {
+      background-color: rgb(0, 37, 148, 0.05);
+    }
 
     &--small {
       font-size: 0.8rem;
@@ -298,6 +290,8 @@ onMounted(async () => {
       position: relative;
       display: flex;
       flex-direction: column;
+      text-decoration: none;
+      color: black;
     }
 
     &-btn {
