@@ -98,6 +98,14 @@ const setChoosenDevice = (deviceId: string) => {
   choosenDevice.value = devices.value.find(device => device.id === deviceId) || null
 }
 
+/**
+ * When a device is removed.
+ */
+const onRemove = () => {
+  listDevices()
+  choosenDevice.value = null
+}
+
 onMounted(async () => {
   loading.value = true
   listDevices()
@@ -180,7 +188,7 @@ onMounted(async () => {
         ></EnrollDevice>
 
         <div class="home__main" v-else>
-          <Device v-if="choosenDevice" :device="choosenDevice" @remove="listDevices" />
+          <Device v-if="choosenDevice" :device="choosenDevice" @remove="onRemove" />
 
           <div class="home__welcome" v-else>
             <h1>Välkommen till Homecall</h1>
