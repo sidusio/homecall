@@ -71,7 +71,6 @@ const setTenant = async (tenantId: string) => {
     setTenantId(tenantId)
     currentTenant.value = tenantsList.value.find(tenant => tenant.id === tenantId) as Tenant // TODO: Change typing to a better solution.
     open.value = false;
-    router.push('/dashboard')
 }
 
 /**

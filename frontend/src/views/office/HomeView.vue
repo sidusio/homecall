@@ -7,6 +7,7 @@ import EnrollDevice from '@/components/EnrollDevice.vue';
 import RegisterDevice from '@/components/RegisterDevice.vue';
 import Calendar from '@/components/Calendar.vue';
 import Loading from '@/components/Loading.vue';
+import Device from '@/components/device/Device.vue';
 import { useAuth0 } from '@auth0/auth0-vue';
 import { useTenantIdStore } from '@/stores/tenantId';
 
@@ -29,12 +30,15 @@ const enrollment = ref<Enrollment | null>(null)
 const devices = ref<Device[]>([])
 const recentlyModifiedDeviceId = ref<string | null>(null)
 const tenantIdStore = useTenantIdStore()
+const choosenDevice = ref<Device | null>(null)
+const loading = ref(false)
 
 /**
  * Subscribe to tenantId changes.
  */
 useTenantIdStore().$subscribe(() => {
   listDevices()
+  choosenDevice.value = null
 })
 
 /**
@@ -85,7 +89,14 @@ const handleEnrollment = (deviceId: string) => {
   listDevices()
 }
 
-const loading = ref(false)
+/**
+ * Set the choosen device.
+ *
+ * @param deviceId - The id of the device.
+ */
+const setChoosenDevice = (deviceId: string) => {
+  choosenDevice.value = devices.value.find(device => device.id === deviceId) || null
+}
 
 onMounted(async () => {
   loading.value = true
@@ -115,15 +126,13 @@ onMounted(async () => {
               v-for="device in devices"
               :key="device.id"
               :class="recentlyModifiedDeviceId === device.id ? 'home__device--recently-modified' : ''"
+              @click="setChoosenDevice(device.id)"
             >
-              <router-link :to="'/enhet/' + device.id" class="home__device-info">
-                <span class="home__device--small">
-                  {{ device.id ? device.id : 'Ingen ID'}}
-                </span>
+              <div class="home__device-info">
                 <div class="home__device--row">
                   {{ device.name }}
                 </div>
-              </router-link>
+              </div>
 
               <router-link
                 v-if="!device.enrollmentKey"
@@ -171,8 +180,12 @@ onMounted(async () => {
         ></EnrollDevice>
 
         <div class="home__main" v-else>
-          <h1>Välkommen till Homecall</h1>
-          <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
+          <Device v-if="choosenDevice" :device="choosenDevice" @remove="listDevices" />
+
+          <div class="home__welcome" v-else>
+            <h1>Välkommen till Homecall</h1>
+            <p>Välj en enhet att ringa till eller registrera en ny enhet.</p>
+          </div>
 
           <!--<Calendar />-->
         </div>
@@ -191,6 +204,7 @@ onMounted(async () => {
 
   &__main {
     width: 100%;
+    height: 100%;
   }
 
   &__loading {
@@ -364,6 +378,15 @@ onMounted(async () => {
     }
   }
 
+  &__welcome {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
   .tip {
     font-size: 0.8rem;
     background-color: rgb(67, 107, 177, 0.1);
@@ -377,7 +400,7 @@ onMounted(async () => {
     justify-content: center;
     align-items: center;
     flex: 1;
-    text-align: center;
+    overflow: auto;
   }
 }
 </style>
