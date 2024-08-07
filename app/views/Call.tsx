@@ -177,7 +177,7 @@ export default function Call(props: {
         mediaPlaybackRequiresUserAction={ false }
         allowsInlineMediaPlayback={ true }
         applicationNameForUserAgent={"Version/16.2 Safari/605.1.15"}
-        //mediaCapturePermissionGrantType={"grant"}
+        mediaCapturePermissionGrantType={"grant"}
       />
     </>
   )

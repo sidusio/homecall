@@ -21,13 +21,16 @@
       },
       "bundleIdentifier": "io.sidus.homecall",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "buildNumber": "1.1.2",
       "entitlements": {
         "aps-environment": "development"
       },
       "infoPlist": {
         "CFBundleLocalizations": ["sv"],
-        "CFBundleDevelopmentRegion": "sv"
+        "CFBundleDevelopmentRegion": "sv",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoadsInWebContent": true,
+          "NSAllowsArbitraryLoadsForMedia": true
+        }
       }
     },
     "android": {
@@ -45,9 +48,6 @@
         "android.permission.AUDIO_CAPTURE",
         "android.permission.MICROPHONE"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {

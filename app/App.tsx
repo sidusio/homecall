@@ -1,5 +1,5 @@
 import applyGlobalPolyfills from "./globals" // <-- Change the path
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 import Enroll from "./views/Enroll";
 import { useKeepAwake } from 'expo-keep-awake';
 import { useState, useEffect } from 'react';
