@@ -36,40 +36,42 @@ getConfig().then((config) => {
 
   window.config = config;
 
-  Sentry.init({
-      app,
-      dsn: config.sentry.dsn,
-      integrations: [
-        Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration(),
-        Sentry.feedbackIntegration({
-          // Additional SDK configuration goes in here, for example:
-          colorScheme: "light",
-          showBranding: false,
-          triggerLabel: "Ge oss feedback",
-          formTitle: "Ge oss feedback",
-          nameLabel: "Namn",
-          namePlaceholder: "Skriv ditt namn här...",
-          emailLabel: "E-post",
-          emailPlaceholder: "Skriv din e-post här...",
-          messageLabel: "Meddelande",
-          messagePlaceholder: "Skriv ditt meddelande här...",
-          isRequiredLabel: "*",
-          addScreenshotButtonLabel: "Lägg till skärmbild",
-          removeScreenshotButtonLabel: "Ta bort skärmbild",
-          submitButtonLabel: "Skicka feedback",
-          cancelButtonLabel: "Avbryt",
-          successMessageText: "Tack för din feedback!",
-        }),
-      ],
-      // Performance Monitoring
-      tracesSampleRate: 1.0, //  Capture 100% of the transactions
-      // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
-      tracePropagationTargets: ["localhost", /^https:\/\/yourserver\.io\/api/],
-      // Session Replay
-      replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
-      replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
-  });
+  if(import.meta.env.MODE === 'production') {
+    Sentry.init({
+        app,
+        dsn: config.sentry.dsn,
+        integrations: [
+          Sentry.browserTracingIntegration(),
+          Sentry.replayIntegration(),
+          Sentry.feedbackIntegration({
+            // Additional SDK configuration goes in here, for example:
+            colorScheme: "light",
+            showBranding: false,
+            triggerLabel: "Ge oss feedback",
+            formTitle: "Ge oss feedback",
+            nameLabel: "Namn",
+            namePlaceholder: "Skriv ditt namn här...",
+            emailLabel: "E-post",
+            emailPlaceholder: "Skriv din e-post här...",
+            messageLabel: "Meddelande",
+            messagePlaceholder: "Skriv ditt meddelande här...",
+            isRequiredLabel: "*",
+            addScreenshotButtonLabel: "Lägg till skärmbild",
+            removeScreenshotButtonLabel: "Ta bort skärmbild",
+            submitButtonLabel: "Skicka feedback",
+            cancelButtonLabel: "Avbryt",
+            successMessageText: "Tack för din feedback!",
+          }),
+        ],
+        // Performance Monitoring
+        tracesSampleRate: 1.0, //  Capture 100% of the transactions
+        // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
+        tracePropagationTargets: ["localhost", /^https:\/\/yourserver\.io\/api/],
+        // Session Replay
+        replaysSessionSampleRate: 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
+        replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
+    });
+  }
 
   app.use(
     createAuth0({
