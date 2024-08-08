@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {Component, useEffect, useState} from "react";
 import {AuthContext, decrypt, getAuthContext, hasCredentials} from "../lib/auth";
 import {enroll, EnrollmentData} from "../lib/enrollment";
 import {View} from "react-native";
@@ -101,9 +101,17 @@ export default function HomeCall(props: {
     })
   }, [fcmSetupDone]);
 
+  const loadingScreen = (text: string) => {
+    // TODO: Loading screen
+    return (
+      <View>
+      </View>
+    );
+  }
+
   // If we don't know if the user is enrolled yet, don't show anything
   if (enrolled === null) {
-    return <View />; // TODO: Loading screen
+    return loadingScreen("Letar efter låset...");
   }
 
   if (!enrolled) {
@@ -113,7 +121,7 @@ export default function HomeCall(props: {
   }
 
   if (authContext === null ) {
-    return <View />; // TODO: Loading screen
+    return loadingScreen("Hämtar nycklarna...");
   }
 
   return (
