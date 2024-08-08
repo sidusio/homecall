@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
-import {EnrollmentData, isEnrollmentData} from "../services/enrollment";
+import {EnrollmentData, isEnrollmentData} from "../lib/enrollment";
 
 const homecallProtocolPrefix = 'homecall://';
 

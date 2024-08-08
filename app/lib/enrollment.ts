@@ -1,9 +1,6 @@
-import * as SecureStore from 'expo-secure-store';
 import { setupCredentials}  from "./auth";
-import { clearCredentials } from "./storage";
+import { clearCredentials } from "./credentials";
 import { deviceClient } from './api';
-import { storeSettings } from './storage';
-import firebase from '@react-native-firebase/app';
 
 interface firebaseConfig {
   name: string;
@@ -56,13 +53,6 @@ export async function enroll(data: EnrollmentData): Promise<boolean> {
       publicKey: publicKey,
       enrollmentKey: data.enrollmentKey,
     });
-
-    if(!res.settings) {
-      return false;
-    }
-
-    // Store the device settings in localStorage
-    await storeSettings(res.settings);
 
     // Can have clientId and databaseURL as well...
     /*firebase.initializeApp({

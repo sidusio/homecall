@@ -1,27 +1,14 @@
 import { RSA } from 'react-native-rsa-native';
 import base64url from "base64url";
-import {getCredentials, storeCredentials} from "./storage";
+import {getCredentials, storeCredentials, Credentials} from "./credentials";
 
 const Buffer = require("buffer").Buffer;
 
-
-interface Credentials {
-  deviceId: string;
-  privateKey: string;
+export interface AuthContext {
+  deviceToken: string;
   instanceUrl: string;
-  audience: string;
+  deviceId: string;
 }
-
-function isCredentials(data: any): data is Credentials {
-  return (
-    typeof data === 'object' &&
-    typeof data.deviceId === 'string' &&
-    typeof data.privateKey === 'string' &&
-    typeof data.instanceUrl === 'string' &&
-    typeof data.audience === 'string'
-  );
-}
-
 
 /**
  * Sets up the credentials for the device
@@ -46,7 +33,7 @@ export async function setupCredentials(deviceId: string, instanceUrl: string, au
  * Gets the credentials for the device
  * @returns The API token and the api url
  */
-export async function getApiToken(): Promise<[string, string, string]> {
+export async function getAuthContext(): Promise<AuthContext> {
   const { privateKey, deviceId, instanceUrl, audience } = await getCredentials();
 
   const jwtHeader = {
@@ -73,7 +60,16 @@ export async function getApiToken(): Promise<[string, string, string]> {
 
   const jwt = `${jwtHeaderPayload}.${urlEncodedSignature}`;
 
-  return [jwt, instanceUrl, deviceId];
+  return {
+    deviceToken: jwt,
+    instanceUrl,
+    deviceId,
+  };
+}
+
+export async function decrypt(message: string): Promise<string> {
+  const { privateKey } = await getCredentials();
+  return RSA.decrypt(message, privateKey);
 }
 
 export async function hasCredentials(): Promise<boolean> {

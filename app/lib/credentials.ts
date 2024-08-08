@@ -1,10 +1,26 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import { Credentials, isCredentials } from "./credentials";
-import {DeviceSettings, isDeviceSettings} from "./deviceSettings";
 
-const credentialsSecureStoreTag = 'io.sidus.homecall.credentials';
-const hasCredentialsStorageTag = 'io.sidus.homecall.hasCredentials';
+const appNamespace = 'io.sidus.homecall';
+const credentialsSecureStoreTag = appNamespace + '.credentials';
+const hasCredentialsStorageTag = appNamespace +'.hasCredentials';
+
+export interface Credentials {
+  deviceId: string;
+  privateKey: string;
+  instanceUrl: string;
+  audience: string;
+}
+
+export function isCredentials(data: any): data is Credentials {
+  return (
+    typeof data === 'object' &&
+    typeof data.deviceId === 'string' &&
+    typeof data.privateKey === 'string' &&
+    typeof data.instanceUrl === 'string' &&
+    typeof data.audience === 'string'
+  );
+}
 
 export async function clearCredentials(): Promise<void> {
   await AsyncStorage.removeItem(hasCredentialsStorageTag);
@@ -36,24 +52,4 @@ export async function getCredentials(): Promise<Credentials> {
   }
 
   return credentials;
-}
-
-const deviceSettingsStoreTag = 'io.sidus.homecall.deviceSettings';
-
-export async function storeSettings(settings: DeviceSettings) {
-  await AsyncStorage.setItem(deviceSettingsStoreTag, JSON.stringify(settings));
-}
-
-export async function getSettings(): Promise<DeviceSettings | boolean> {
-  const settingsData = await AsyncStorage.getItem(deviceSettingsStoreTag);
-  if (!settingsData) {
-    throw new Error('No settings found');
-  }
-
-  const settings = JSON.parse(settingsData);
-  if (!isDeviceSettings(settings)) {
-    throw new Error('Invalid settings');
-  }
-
-  return settings
 }
