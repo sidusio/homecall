@@ -83,8 +83,12 @@ export default function Call(props: {
     }
 
     const [type, message, timestamp] = lastMessage
+    if(timestamp < Date.now() - 1000 * 20) {
+      return;
+    }
+
     webViewRef.injectJavaScript(`
-      window.dispatchEvent(new CustomEvent('${type}', { detail: '${message}', timestamp: '${timestamp}' }));
+      window.dispatchEvent(new CustomEvent('${type}', { detail: '${message}' }));
     `);
   }, [lastMessage]);
 
@@ -98,9 +102,7 @@ export default function Call(props: {
   const initialLoad = () => {
     injectHomecallDeviceToken(authContext.deviceToken, webViewRef);
     injectHomecallAppData(authContext.deviceId, webViewRef);
-    if (__DEV__) {
-      injectDebugging();
-    }
+    injectDebugging(webViewRef);
   }
   useEffect(() => {
     initialLoad()

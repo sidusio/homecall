@@ -1,7 +1,7 @@
 import {Component, useEffect, useState} from "react";
 import {AuthContext, decrypt, getAuthContext, hasCredentials} from "../lib/auth";
 import {enroll, EnrollmentData} from "../lib/enrollment";
-import {View} from "react-native";
+import {ActivityIndicator, View, StyleSheet, Text} from "react-native";
 import Enroll from "./Enroll";
 import Call from "./Call";
 import {deviceClient} from "../lib/api";
@@ -96,15 +96,18 @@ export default function HomeCall(props: {
           setLastMessage(['fcm', JSON.stringify(message), message.sentTime ?? 0])
         })
       } else {
-        setLastMessage(['fcm', JSON.stringify(message), message.sentTime ?? 0])
+        setLastMessage(['fcm', JSON.stringify(message),  Date.now()])
       }
     })
   }, [fcmSetupDone]);
 
   const loadingScreen = (text: string) => {
-    // TODO: Loading screen
     return (
-      <View>
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#002594" />
+        <Text style={styles.loadingText}>
+          {text}
+        </Text>
       </View>
     );
   }
@@ -120,7 +123,7 @@ export default function HomeCall(props: {
     />;
   }
 
-  if (authContext === null ) {
+  if (authContext === null) {
     return loadingScreen("Hämtar nycklarna...");
   }
 
@@ -128,3 +131,19 @@ export default function HomeCall(props: {
     <Call authContext={authContext} lastMessage={lastMessage} />
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    height: '100%',
+    width: '100%',
+    textAlign: 'center',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 24,
+    marginTop: 16,
+    color: '#002594',
+  }
+});
