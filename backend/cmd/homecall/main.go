@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/kelseyhightower/envconfig"
 	"log/slog"
 	"os"
 	"os/signal"
+
+	"github.com/kelseyhightower/envconfig"
 	"sidus.io/home-call/app"
 )
 
@@ -21,7 +22,7 @@ func main() {
 	}(ctx, cleanup)
 
 	cfgPrefix := appName
-	if os.Getenv("HOMECALL_NO_ENV_PREFIX") != "false" {
+	if os.Getenv("HOMECALL_NO_ENV_PREFIX") == "true" {
 		cfgPrefix = ""
 	}
 
