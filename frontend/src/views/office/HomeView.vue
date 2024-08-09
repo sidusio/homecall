@@ -32,6 +32,7 @@ const recentlyModifiedDeviceId = ref<string | null>(null)
 const tenantIdStore = useTenantIdStore()
 const choosenDevice = ref<Device | null>(null)
 const loading = ref(false)
+const wizard = ref(false)
 
 /**
  * Subscribe to tenantId changes.
@@ -71,22 +72,43 @@ const clearEnrollment = () => {
  *
  * @param event - The enrollment event.
  */
-const handleRegistration = (event: Enrollment) => {
+const handleRegistration = async (event: Enrollment) => {
   enrollment.value = event
   registerDevice.value = false
   recentlyModifiedDeviceId.value = event.deviceId
-  listDevices()
+  await listDevices()
 }
+
+const online = ref(true)
 
 /**
  * Handle the enrollment of a device.
  *
  * @param deviceId - The id of the device.
  */
-const handleEnrollment = (deviceId: string) => {
+const handleEnrollment = async (deviceId: string) => {
   clearEnrollment()
   recentlyModifiedDeviceId.value = deviceId
-  listDevices()
+  await listDevices()
+  online.value = false
+
+  // Do listdevice until the device is online, based on deviceId
+  const device = devices.value.find(device => device.id === deviceId)
+
+  if (device && !device.online) {
+    await new Promise((resolve) => {
+      const interval = setInterval(async () => {
+        await listDevices()
+        const device = devices.value.find(device => device.id === deviceId)
+
+        if (device && device.online) {
+          clearInterval(interval)
+          online.value = true
+          choosenDevice.value = device
+        }
+      }, 1000)
+    })
+  }
 }
 
 /**
@@ -101,14 +123,28 @@ const setChoosenDevice = (deviceId: string) => {
 /**
  * When a device is removed.
  */
-const onRemove = () => {
-  listDevices()
+const onRemove = async () => {
+  await listDevices()
+  choosenDevice.value = null
+}
+
+const startWizard = () => {
+  wizard.value = true
+  registerDevice.value = true
+}
+
+const endWizard = () => {
+  wizard.value = false
+  registerDevice.value = false
+  enrollment.value = null
   choosenDevice.value = null
 }
 
 onMounted(async () => {
+  endWizard()
+
   loading.value = true
-  listDevices()
+  await listDevices()
   loading.value = false
 })
 </script>
@@ -168,24 +204,43 @@ onMounted(async () => {
 
         <button
           class="home__register"
-          @click="registerDevice = true"
+          @click="startWizard"
         >
           Registrera enhet
         </button>
       </aside>
 
       <main class="home__dashboard">
-        <RegisterDevice
-          v-if="registerDevice"
-          @registered="handleRegistration"
-        ></RegisterDevice>
+        <div v-if="wizard">
+          <RegisterDevice
+            v-if="registerDevice"
+            @registered="handleRegistration"
+          ></RegisterDevice>
 
-        <EnrollDevice
-          v-else-if="enrollment"
-          :enrollment="enrollment"
-          @close="clearEnrollment"
-          @enrolled="handleEnrollment"
-        ></EnrollDevice>
+          <EnrollDevice
+            v-else-if="enrollment"
+            :enrollment="enrollment"
+            @close="clearEnrollment"
+            @enrolled="handleEnrollment"
+          ></EnrollDevice>
+
+          <div v-else-if="!enrollment && !online">
+            <Loading text="Väntar på att enheten ska gå online, det borde bara ta någon minut. Glöm inte att godkänna behörigheter på enheten!"/>
+          </div>
+
+          <div class="home__enrollment-done" v-else>
+            <h1>Jippie! Nu är enheten redo!</h1>
+            <p>Det är viktigt att du testar att ringa till enheten innan du lämnar över den till en brukare.</p>
+
+            <router-link
+              class="home__test-call btn btn--call"
+              :to="`/call/${choosenDevice?.id}`"
+            >
+              <img src="@/assets/icons/phone.svg">
+              Testa att ringa
+            </router-link>
+          </div>
+        </div>
 
         <div class="home__main" v-else>
           <Device v-if="choosenDevice" :device="choosenDevice" @remove="onRemove" />
@@ -409,6 +464,17 @@ onMounted(async () => {
     align-items: center;
     flex: 1;
     overflow: auto;
+  }
+
+  &__enrollment-done {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    .btn {
+      margin-top: 2rem;
+    }
   }
 }
 </style>

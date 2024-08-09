@@ -1,10 +1,13 @@
 <script setup lang="ts">
+defineProps({
+    text: String
+})
 </script>
 
 <template>
     <div class="loading">
         <div class="loading__spinner"></div>
-        <p>Laddar...</p>
+        <p>{{ text !== '' ? text : 'Laddar...' }}</p>
     </div>
 </template>
 
@@ -16,7 +19,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: .5rem;
+    gap: 1rem;
 
     &__spinner {
         border: 8px solid $color-primary-opacity-10;

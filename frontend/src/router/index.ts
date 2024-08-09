@@ -40,15 +40,6 @@ const router = createRouter({
       path: '/',
       name: 'Login',
       component: () => import('../views/office/LoginView.vue'),
-      beforeEnter: (to, from, next) => {
-        const { user } = useAuth0();
-
-        if(user !== undefined) {
-          next({ name: 'Home' });
-        }
-
-        next({ name: 'Login' });
-      },
     },
     {
       path: '/verify-email',

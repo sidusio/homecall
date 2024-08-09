@@ -5,7 +5,7 @@ import { computed, watch, ref, onMounted } from 'vue'
 // Types.
 interface Settings {
   autoAnswer: boolean;
-  autoAnswerDelaySeconds: bigint;
+  autoAnswerDelaySeconds: number;
 }
 
 interface Call {
@@ -15,7 +15,11 @@ interface Call {
 
 const settings = computed((): Settings => {
   // @ts-ignore - DeviceId is set in the HTML.
-  return (window.deviceData.settings || '{}')
+  // TODO: This should be fetched from the backend.
+  return ({
+    autoAnswer: true,
+    autoAnswerDelaySeconds: 3
+  })
 })
 
 const incomingCall = ref<Call | null>(null)
@@ -100,7 +104,7 @@ interface CallData {
 
 const pickupCall = async (data: CallData) => {
   try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('homecallDeviceToken')
 
       const abort = new AbortController()
 
@@ -133,7 +137,7 @@ onMounted(async () => {
   // Listen to fcm event.
   window.addEventListener('fcm', async (event) => {
     // @ts-ignore - Data is set in the injected JS.
-    incomingCall.value = await pickupCall(event.detail.data) || null
+    incomingCall.value = await pickupCall(JSON.parse(event.detail).data) || null
   })
 })
 </script>
